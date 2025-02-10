@@ -1,0 +1,534 @@
+//
+//  Working Solution for DR UDP Message Monitor
+//  2024-05-27 Version 1.3 ACH
+//  2024-07-02 V1.4 ACH.   Hosts unit added from DR.  Not working as Hosts not changed from original
+//
+
+
+unit Unit7;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, IdBaseComponent,  CommCtrl,
+  IdComponent, IdUDPBase, IdUDPServer, IdCustomTCPServer, IdSocksServer,
+  IdUDPClient, IdGlobal, IdSocketHandle, Vcl.Samples.Gauges, Vcl.ComCtrls,  Unit2,
+//  Hosts,        // include Malcolm's Host code and window
+  Vcl.ExtCtrls, Vcl.ActnMan, Vcl.ActnColorMaps, Vcl.Buttons;
+
+type
+  TForm7 = class(TForm)
+    IdUDPServer1: TIdUDPServer;
+    IdUDPServer2: TIdUDPServer;
+    IdUDPServer3: TIdUDPServer;
+    IdUDPServer4: TIdUDPServer;
+    Button1: TButton;
+    Label1: TLabel;
+    Label2: TLabel;
+    Memo1: TMemo;
+    Memo2: TMemo;
+    Memo3: TMemo;
+    Memo4: TMemo;
+    Label3: TLabel;
+    Label4: TLabel;
+    Label5: TLabel;
+    Gauge1: TGauge;
+    Gauge2: TGauge;
+    Gauge3: TGauge;
+    Gauge4: TGauge;
+    StandardColorMap1: TStandardColorMap;
+    Button2: TButton;
+    GroupBox1: TGroupBox;
+    RadioButton1: TRadioButton;
+    RadioButton2: TRadioButton;
+    RadioButton3: TRadioButton;
+    RadioButton4: TRadioButton;
+    RadioButton5: TRadioButton;
+    RadioButton6: TRadioButton;
+    RadioButton7: TRadioButton;
+    RadioButton8: TRadioButton;
+    RadioButton9: TRadioButton;
+    RadioButton10: TRadioButton;
+    RadioButton11: TRadioButton;
+    RadioButton12: TRadioButton;
+    RadioButton13: TRadioButton;
+    RadioButton14: TRadioButton;
+    Edit1: TEdit;
+    Edit2: TEdit;
+    Edit3: TEdit;
+    Edit4: TEdit;
+    Edit5: TEdit;
+    Edit6: TEdit;
+    Edit7: TEdit;
+    Edit8: TEdit;
+    Edit9: TEdit;
+    Edit10: TEdit;
+    Edit11: TEdit;
+    Edit12: TEdit;
+    Edit13: TEdit;
+    Edit14: TEdit;
+    Edit15: TEdit;
+    RadioButton15: TRadioButton;
+    Edit16: TEdit;
+    Button3: TButton;
+    Label6: TLabel;
+    Label7: TLabel;
+    Label8: TLabel;
+    Label9: TLabel;
+    Label10: TLabel;
+    Edit17: TEdit;
+    RadioButton16: TRadioButton;
+
+    procedure IdUDPServer1UDPRead(AThread: TIdUDPListenerThread;
+      const AData: TIdBytes; ABinding: TIdSocketHandle);
+    procedure Button1Click(Sender: TObject);
+    procedure IdUDPServer2UDPRead(AThread: TIdUDPListenerThread;
+      const AData: TIdBytes; ABinding: TIdSocketHandle);
+    procedure IdUDPServer3UDPRead(AThread: TIdUDPListenerThread;
+      const AData: TIdBytes; ABinding: TIdSocketHandle);
+    procedure IdUDPServer4UDPRead(AThread: TIdUDPListenerThread;
+      const AData: TIdBytes; ABinding: TIdSocketHandle);
+    procedure FormCreate(Sender: TObject);
+    procedure RadioButton10Click(Sender: TObject);
+    procedure RadioButton1Click(Sender: TObject);
+    procedure RadioButton11Click(Sender: TObject);
+    procedure RadioButton12Click(Sender: TObject);
+    procedure RadioButton13Click(Sender: TObject);
+    procedure RadioButton14Click(Sender: TObject);
+    procedure RadioButton2Click(Sender: TObject);
+    procedure RadioButton3Click(Sender: TObject);
+    procedure RadioButton4Click(Sender: TObject);
+    procedure RadioButton5Click(Sender: TObject);
+    procedure RadioButton6Click(Sender: TObject);
+    procedure RadioButton7Click(Sender: TObject);
+    procedure RadioButton8Click(Sender: TObject);
+    procedure RadioButton9Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure RadioButton15Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
+    procedure RadioButton16Click(Sender: TObject);
+
+
+  private
+    { Private declarations }
+
+
+  public
+    { Public declarations }
+    c1, r1, u1, a1, d1, sb1, aw1 :  integer;
+    c2, f2, db2, h2, di2, sc2 : integer;
+    c3, wu3, wm3, sr3, cl3: integer;
+    c4, awd4 : integer;
+    s1, s1Old, s2, s2Old, s3, s3Old, s4, s4Old : string;
+    value, tot091, tot092, tot093, tot094 : integer;
+    btnPressed:  integer;
+    splitString1, splitString2, splitString3, splitString4 : TArray<string>;
+    refereeArray1, avideoArray1, updateArray1, drconfigArray1, sbcontrolArray1, awardArray1 : TArray<string>;
+    scoreboardArray1, helloArray1, foundserverArray1, dbserverArray1, diverecorderArray1 : TArray<string>;
+    webupdateArray1, webmessageArray1, startresultArray1 : TArray<string>;
+    award2Array1, arrayUnknown : TArray<string>;
+  end;
+
+var
+  Form7: TForm7;
+
+implementation
+
+{$R *.dfm}
+
+
+function mySplit(input: string): TArray<string>;
+var
+  delimiterSet: array [0 .. 0] of char;
+  begin
+    delimiterSet[0] := '|';
+    result := input.Split(delimiterSet);
+  end;
+
+
+//    FrmHosts.ShowModal;
+
+
+procedure TForm7.Button2Click(Sender: TObject);
+begin
+  Form2.show;
+end;
+
+procedure TForm7.Button3Click(Sender: TObject);      // reset button
+begin
+  c1 := 0;
+  Gauge1.Progress := c1;
+  Gauge1.ForeColor := clBlue;
+  c2 := 0;
+  Gauge2.Progress := c2;
+  Gauge2.ForeColor := clBlue;
+  c3 := 0;
+  Gauge3.Progress := c3;
+  Gauge3.ForeColor := clBlue;
+  c4 := 0;
+  Gauge4.Progress := c4;
+  Gauge4.ForeColor := clBlue;
+  edit16.text := ('');
+end;
+
+procedure TForm7.FormCreate(Sender: TObject);
+  var
+  I: integer;
+begin
+  btnPressed := 1;    //default decode of REFEREE message unless overiden by user
+end;
+
+procedure TForm7.Button1Click(Sender: TObject);   // Connect Button
+begin
+// IdUDPServer1.Bindings.add.IP := '0';
+// IdUDPServer1.DefaultPort := Edit1.Text;
+  if IdUDPServer1.Active then
+    begin IdUDPServer1.Active := false;
+    IdUDPServer2.Active := false;
+    IdUDPServer3.Active := false;
+    IdUDPServer4.Active := false;
+    Label2.Caption := 'Not Attached';
+    Button1.Caption := 'Connect';
+  end
+  else
+    begin IdUDPServer1.Active := true;
+    IdUDPServer2.Active := true;
+    IdUDPServer3.Active := true;
+    IdUDPServer4.Active := true;
+    Label2.Caption := 'Attached to 4 UDP ports!';
+    Button1.Caption := 'Disconnect';
+  end
+
+end;
+
+// Port 85091 receive
+procedure TForm7.IdUDPServer1UDPRead(AThread: TIdUDPListenerThread;
+  const AData: TIdBytes; ABinding: TIdSocketHandle);
+
+begin
+  Gauge1.BackColor := clBtnFace;
+  s1:= BytesToString(Adata, IndyTextEncoding_UTF8);
+  Inc(tot091);
+  if s1 = s1Old then
+  begin            // same message
+    Inc(c1);
+  end
+  else begin
+    c1 := 1;       // restart counter
+    s1Old := s1;
+    splitString1 := mySplit(s1);
+    Memo1.Lines.Add('From ' + ABinding.peerIP + ' Port: ' + IntToStr(ABinding.PeerPort) + sLinebreak + s1 + sLinebreak);
+    if splitString1[0] = 'REFEREE' then
+    begin
+      refereeArray1 := splitString1;
+      Inc(r1);;
+      edit1.text := inttostr(r1);
+      if btnPressed = 1 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else if splitString1[0] = 'AVIDEO' then
+    begin
+      avideoArray1 := splitString1;
+      Inc(a1);
+      edit2.text := inttostr(a1);
+      if btnPressed = 2 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else if splitString1[0] = 'UPDATE' then
+    begin
+      updateArray1 := splitString1;
+      Inc(u1);
+      edit3.text := inttostr(u1);
+      if btnPressed = 3 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else if splitString1[0] = 'DRCONFIG' then
+    begin
+      drconfigArray1 := splitString1;
+      Inc(d1);
+      edit4.text := inttostr(d1);
+      if btnPressed = 4 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else if splitString1[0] = 'SBCONTROL' then
+    begin
+      sbcontrolArray1 := splitString1;
+      Inc(sb1);
+      edit5.text := inttostr(sb1);
+      if btnPressed = 5 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else if splitString1[0] = 'AWARD' then
+    begin
+      awardArray1 := splitString1;
+      Inc(aw1);
+      edit6.text := inttostr(aw1);
+      if btnPressed = 6 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else
+    edit16.text := ('Port85091 - Unknown message type from: ' + ABinding.PeerIP + ', port: ' + IntToStr(ABinding.PeerPort));
+  end;
+  Gauge1.Progress := c1;
+  label7.Caption := inttostr(tot091);
+  if c1 < 2 then begin
+    Gauge1.ForeColor := clRed;
+  end
+  else if c1 < 10 then
+  begin
+    Gauge1.ForeColor := clYellow;
+  end
+  else begin
+    Gauge1.ForeColor := clGreen;
+  end;
+
+  if c1 >= 10 then c1 := c1 - 10;
+
+end;
+
+
+// port 86092 receive
+procedure TForm7.IdUDPServer2UDPRead(AThread: TIdUDPListenerThread;
+  const AData: TIdBytes; ABinding: TIdSocketHandle);
+
+begin
+  Gauge2.BackColor := clBtnFace;
+  s2:= BytesToString(Adata, IndyTextEncoding_UTF8);
+  Inc(tot092);
+  if s2 = s2Old then
+  begin
+    Inc(c2);
+  end
+  else begin
+    c2 := 1;            // restart counter
+    s2Old := s2;
+    splitString2 := mySplit(s2);
+    Memo2.Lines.Add('From: ' + ABinding.PeerIP + ' Port: ' + IntToStr(ABinding.PeerPort) + sLinebreak + s2 + sLinebreak );
+    if splitString2[0] = 'FOUNDSERVER' then
+    begin
+      foundserverArray1 := splitString2;
+      Inc(f2);;
+      edit9.text := inttostr(f2);
+      if btnPressed = 9 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else if splitString2[0] = 'DBSERVER' then
+    begin
+      dbserverArray1 := splitString2;
+      Inc(db2);
+      edit10.text :=  inttostr(db2);
+      if btnPressed = 10 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else if splitString2[0] = 'HELLO' then
+    begin
+      helloArray1 := splitString2;
+      Inc(h2);
+      edit8.text := inttostr(h2);
+      if btnPressed = 8 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else if splitString2[0] = 'DIVERECORDER' then
+    begin
+      diverecorderArray1 := splitString2;
+      Inc(di2);
+      edit11.text :=  inttostr(di2);
+      if btnPressed = 11 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else if splitString2[0] = 'SCOREBOARD' then
+    begin
+      sbcontrolArray1 := splitString2;
+      Inc(sb1);
+      edit7.text :=  inttostr(sb1);
+      if btnPressed = 7 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else edit16.text := ('Port 85092 - Unknown message type from ' + ABinding.PeerIP + ', port: ' + IntToStr(ABinding.PeerPort));
+  end;
+  Gauge2.Progress := c2;
+  Label8.Caption := inttostr(tot092);
+  if c2 < 2 then begin
+    Gauge2.ForeColor := clRed;
+  end
+  else if c2 < 10 then
+  begin
+    Gauge2.ForeColor := clYellow;
+  end
+  else begin
+    Gauge2.ForeColor := clGreen;
+  end;
+  if c2 >= 10 then c2 := c2-10;
+
+end;
+
+
+// port 85093 receive
+procedure TForm7.IdUDPServer3UDPRead(AThread: TIdUDPListenerThread;
+  const AData: TIdBytes; ABinding: TIdSocketHandle);
+
+begin
+  Gauge3.BackColor := clBtnFace;
+  s3:= BytesToString(Adata, IndyTextEncoding_UTF8);
+  Inc(tot093);
+  if s3 = s3Old then
+  begin
+    Inc(c3);
+  end
+  else begin
+    c3 := 1;           // restart counter
+    s3Old := s3;
+    splitString3 := mySplit(s3);
+    Memo3.Lines.Add('From: ' + ABinding.PeerIP + ' Port: ' + IntToStr(ABinding.PeerPort) + sLinebreak + s3 + sLineBreak);
+    if splitString3[0] = 'WEBUPDATE' then
+    begin
+      webupdateArray1 := splitString3;
+      Inc(wu3);;
+      edit12.text :=  inttostr(wu3);
+      if btnPressed = 12 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else if splitString3[0] = 'WEBMESSAGE' then
+    begin
+      webmessageArray1 := splitString3;
+      Inc(wm3);
+      edit13.text :=  inttostr(wm3);
+      if btnPressed = 13 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else if splitString3[0] = 'STARTRESULT' then
+    begin
+      startresultArray1 := splitString3;
+      Inc(sr3);
+      edit14.text :=  inttostr(sr3);
+      if btnPressed = 14 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else if splitString3[0] = 'CLEAR_A' then
+    begin
+      startresultArray1 := splitString3;
+      Inc(cl3);
+      edit17.text :=  inttostr(cl3);
+      if btnPressed = 16 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else if splitString3[0] = 'CLEAR_B' then
+    begin
+      startresultArray1 := splitString3;
+      Inc(cl3);
+      edit17.text :=  inttostr(cl3);
+      if btnPressed = 16 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else edit16.text := ('Port 85093 - Unknown message type from: ' + ABinding.PeerIP + ', port: ' + IntToStr(ABinding.PeerPort));
+  end;
+  Gauge3.Progress := c3;
+  Label9.Caption := inttostr(tot093);
+  if c3 < 2 then begin
+    Gauge3.ForeColor := clRed;
+  end
+  else if c3 < 10 then
+  begin
+    Gauge3.ForeColor := clYellow;
+  end
+  else begin
+    Gauge3.ForeColor := clGreen;
+  end;
+  if c3 >= 10 then c3 := c3-10;
+end;
+
+
+// port 85094 receive
+procedure TForm7.IdUDPServer4UDPRead(AThread: TIdUDPListenerThread;
+  const AData: TIdBytes; ABinding: TIdSocketHandle);
+
+begin
+  Gauge4.BackColor := clBtnFace;
+  s4:= BytesToString(Adata, IndyTextEncoding_UTF8);
+  Inc(tot094);
+  if s4 = s4Old then
+  begin
+    Inc(c4);
+  end
+  else begin
+    c4 := 1;       // restart counter
+    s4Old := s4;
+    splitString4 := mySplit(s4);
+    Memo4.Lines.Add('From: ' + ABinding.PeerIP + ' Port: ' + IntToStr(ABinding.PeerPort) + sLinebreak + s4 + sLinebreak);
+    if splitString4[0] = 'AWARD' then
+    begin
+      award2Array1 := splitString4;
+      Inc(awd4);;
+      edit15.text := inttostr(c4) + ' / ' + inttostr(awd4);
+      if btnPressed = 15 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+    end
+    else edit16.text := ('Port 85094 - Unknown message type from: ' + ABinding.PeerIP + ', port: ' + IntToStr(ABinding.PeerPort));
+  end;
+  Gauge4.Progress := c4;
+  Label10.Caption := inttostr(tot094);
+  if c4 < 2 then begin
+    Gauge4.ForeColor := clRed;
+  end
+  else if c4 < 10 then
+  begin
+    Gauge4.ForeColor := clYellow;
+  end
+  else begin
+    Gauge4.ForeColor := clGreen;
+  end;
+  if c4 >= 10 then c4 := c4-10;
+
+end;
+
+
+procedure TForm7.RadioButton10Click(Sender: TObject);
+begin
+  btnPressed := 10;
+end;
+procedure TForm7.RadioButton11Click(Sender: TObject);
+begin
+  btnPressed := 11;
+end;
+procedure TForm7.RadioButton12Click(Sender: TObject);
+begin
+  btnPressed := 12;
+end;
+procedure TForm7.RadioButton13Click(Sender: TObject);
+begin
+  btnPressed := 13;
+end;
+procedure TForm7.RadioButton14Click(Sender: TObject);
+begin
+  btnPressed := 14;
+end;
+procedure TForm7.RadioButton15Click(Sender: TObject);
+begin
+  btnPressed := 15;
+end;
+procedure TForm7.RadioButton16Click(Sender: TObject);
+begin
+ btnPressed := 16;
+end;
+procedure TForm7.RadioButton1Click(Sender: TObject);
+begin
+  btnPressed := 1;
+end;
+procedure TForm7.RadioButton2Click(Sender: TObject);
+begin
+  btnPressed := 2;
+end;
+procedure TForm7.RadioButton3Click(Sender: TObject);
+begin
+  btnPressed := 3;
+end;
+procedure TForm7.RadioButton4Click(Sender: TObject);
+begin
+  btnPressed := 4;
+end;
+procedure TForm7.RadioButton5Click(Sender: TObject);
+begin
+  btnPressed := 5;
+end;
+procedure TForm7.RadioButton6Click(Sender: TObject);
+begin
+  btnPressed := 6;
+end;
+procedure TForm7.RadioButton7Click(Sender: TObject);
+begin
+  btnPressed := 7;
+end;
+procedure TForm7.RadioButton8Click(Sender: TObject);
+begin
+  btnPressed := 8;
+end;
+procedure TForm7.RadioButton9Click(Sender: TObject);
+begin
+  btnPressed := 9;
+end;
+
+end.
