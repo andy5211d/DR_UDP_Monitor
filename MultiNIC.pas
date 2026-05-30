@@ -1,6 +1,9 @@
 { ************************************* }
-{ Copyright(c) 2007-2023 Malcolm Taylor }
+{ Copyright(c) 2007-2025  Andy Hewat    }
 { ************************************* }
+
+// A Unit for Andy's DR-UDP Monitor programme.
+// Original from Malcolm's DR2Video
 
 unit MultiNIC;
 
@@ -23,12 +26,12 @@ uses
 
 type
   TfrmMultiNIC = class(TForm)
-    Label1: TLabel;
+    Button1: TButton;
     RgIPs: TRadioGroup;
-    BtnOK: TButton;
-    SiLangRTMultiNIC: TsiLangRT;
-    procedure BtnOKClick(Sender: TObject);
+    Memo1: TMemo;
+    Label1: TLabel;
     procedure FormShow(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -36,20 +39,25 @@ type
   end;
 
 var
-  FrmMultiNIC: TfrmMultiNIC;
+  frmMultiNIC: TfrmMultiNIC;
 
 implementation
 
-{$r *.dfm}
+{$R *.dfm}
 
 uses
-  DiveDM;
+  Display,
+  DiveDM;       // what is being used?       =  DStrings
 
 procedure TfrmMultiNIC.FormShow(Sender: TObject);
 var
-  I: Integer;
+  I : Integer;
 begin
+
   // display IP addresses and try to pick LAN
+  //Memo1.text := inttostr(DStrings.count);           // Fault finding
+  Memo1.lines := (DStrings);
+  //Memo1.text := inttostr(I);                        // Fault finding
   for I := 0 to DStrings.Count - 1 do
     RgIPs.Items.Add(DStrings[I].Substring(0, DStrings[I].IndexOf(':')));
   for I := 0 to DStrings.Count - 1 do
@@ -60,9 +68,10 @@ begin
     end;
 end;
 
-procedure TfrmMultiNIC.BtnOKClick(Sender: TObject);
+procedure TfrmMultiNIC.Button1Click(Sender: TObject);
 begin
   ModalResult := MrOK;
 end;
+
 
 end.

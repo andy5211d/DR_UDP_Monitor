@@ -2,8 +2,8 @@ object frmHosts: TfrmHosts
   Left = 0
   Top = 0
   Caption = 'Hosts'
-  ClientHeight = 393
-  ClientWidth = 294
+  ClientHeight = 253
+  ClientWidth = 323
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -11,35 +11,8 @@ object frmHosts: TfrmHosts
   Font.Name = 'Segoe UI'
   Font.Style = []
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   TextHeight = 15
-  object Label1: TLabel
-    Left = 48
-    Top = 232
-    Width = 34
-    Height = 15
-    Caption = 'Label1'
-  end
-  object Label2: TLabel
-    Left = 48
-    Top = 272
-    Width = 34
-    Height = 15
-    Caption = 'Label2'
-  end
-  object Label3: TLabel
-    Left = 48
-    Top = 320
-    Width = 34
-    Height = 15
-    Caption = 'Label3'
-  end
-  object Label4: TLabel
-    Left = 48
-    Top = 368
-    Width = 34
-    Height = 15
-    Caption = 'Label4'
-  end
   object BtnExit: TButton
     Left = 48
     Top = 32
@@ -63,18 +36,18 @@ object frmHosts: TfrmHosts
     Top = 72
     Width = 209
     Height = 138
-    Caption = 'RadioGroup1'
+    Caption = 'Hosts'
     TabOrder = 2
     OnClick = RgpHostsClick
   end
   object ScanTimer: TTimer
     OnTimer = ScanTimerTimer
-    Left = 160
-    Top = 304
+    Left = 184
+    Top = 120
   end
-  object IdUDPClient1: TIdUDPClient
+  object UDPClient: TIdUDPClient
     Port = 0
-    Left = 160
-    Top = 240
+    Left = 96
+    Top = 120
   end
 end

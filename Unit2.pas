@@ -4,9 +4,9 @@
 
 // A Unit for Andy's DR-UDP Monitor programme.
 //
-// Used to 'decode' the DR UDP data packets for display.
+// Used to 'decode' the DR UDP data packets for display in second window.
 //
-// Jan 2025 Comments added.  Code generated sometime in 2022 or thereabouts!
+// Jan 2025 Comments added.  Original code generated sometime in 2022 or thereabouts!
 //
 
 
@@ -231,7 +231,6 @@ type
   'EoM marker'
   );
 
-
 end;
 
 var
@@ -239,17 +238,17 @@ var
   c : integer = 0;
   btnPressedOld : integer = 0;
   array2display : TArray<string>;
-  udpArray1 :  TArray<string>;
-  udpArray2 :  TArray<string>;
-  udpArray3 :  TArray<string>;
-  udpArray4 :  TArray<string>;
+  udpArray1   :  TArray<string>;
+  udpArray2   :  TArray<string>;
+  udpArray3   :  TArray<string>;
+  udpArray4   :  TArray<string>;
   headerArray : array of string;
 
 implementation
 
 {$R *.dfm}
 
-uses Unit7;
+uses Main;
 
 procedure TForm2.ClearClick(Sender: TObject);         // not needed now!
 var
@@ -453,7 +452,7 @@ begin
     begin
       ListItem := ListView1.Items.Add;
       ListItem.Caption := headerArray[i];
-      if c = 0  then                                     //  Add the new colum of decoded data to 'listView'.   The only way that actually works but there must be a better way!!!
+      if c = 0  then                               //  Add the new colum of decoded data to 'listView'.   This is the only way that actually works but there must be a better way!!!
           begin
             ListItem.SubItems.Add(udpArray1[i]);
           end

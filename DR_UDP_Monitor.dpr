@@ -2,13 +2,14 @@ program DR_UDP_Monitor;
 
 uses
   Vcl.Forms,
-  Unit7 in 'Unit7.pas' {Form7},
+  Main in 'Main.pas' {Form7},
   Unit2 in 'Unit2.pas' {Form2},
-  DiveDM in 'DiveDM.pas',
   FileVerInf in 'FileVerInf.pas',
-  MultiNIC in 'MultiNIC.pas',
   Hosts in 'Hosts.pas' {frmHosts},
-  Hosts1 in 'Hosts1.pas' {frmHosts1};
+  Display in 'Display.pas' {frmDisplay},
+  Xml.VerySimple in 'Xml.VerySimple.pas',
+  MultiNIC in 'MultiNIC.pas' {frmMultiNIC},
+  DiveDM in 'DiveDM.pas' {DM: TDataModule};
 
 {$R *.res}
 
@@ -18,6 +19,8 @@ begin
   Application.CreateForm(TForm7, Form7);
   Application.CreateForm(TForm2, Form2);
   Application.CreateForm(TfrmHosts, frmHosts);
-  Application.CreateForm(TfrmHosts1, frmHosts1);
+  Application.CreateForm(TfrmDisplay, frmDisplay);
+  Application.CreateForm(TfrmMultiNIC, frmMultiNIC);
+  Application.CreateForm(TDM, DM);
   Application.Run;
 end.

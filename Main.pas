@@ -1,18 +1,25 @@
 { ************************************* }
-{ Copyright(c) 2007-2023  Andy Hewat    }
+{ Copyright(c) 2007-2025  Andy Hewat    }
 { ************************************* }
 
-//  Working Solution for DR UDP Message Monitor
-//  2024-05-27 Version 1.3 ACH
-//  2024-07-02 V1.4 ACH.   Hosts unit added from DR.  Not working as Hosts code not changed from MDT original
-//                         Hosts need DiveDM and Display units included so have been added
-//  2025-02-04 V1.4.1      Attempt to get the 'Hosts' and MultiNIC units from MDT to work in this utility. Just for learning as not needed for the original UDP Monitor concept.
-//                         The port Pie-chart display needs further work.  Intent is to show graphically the number of UDP messages.  Idea was to show if collisions
-//                         as the number received would change.  Thus green when receiving all Tx by DR and other colour dependent upon number missing.  But
-//                         the Pie chart does not re-set correctly when a new/different 'packet' is received.  More work needed...
+{
+  A Unit for Andy's DR-UDP Monitor programme.
+
+  Working Solution for DR UDP Message Monitor
+  2024-05-27 Version 1.3 ACH
+  2024-07-02 V1.4 ACH.   Hosts unit added from DR.  Not working as Hosts code not changed from MDT original
+                         Hosts need DiveDM and Display units included so have been added.
+  2025-02-04 V1.4.1      Attempt to get the 'Hosts' and MultiNIC units from MDT to work in this utility. Just for learning as not needed for
+                         the original UDP Monitor concept.  The port Pie-chart display needs further work.  Intent is to show graphically the
+                         number of UDP messages.  Idea was to show if collisions as the number received would change.  Thus green when
+                         receiving all Tx by DR and other colour dependent upon number missing.  But the Pie chart does not re-set correctly
+                         when a new/different 'packet' is received.  More work needed...  <<<*** Does not run !!! ***>>>
+  2026-05-06 V1.5.1      An attempt to use copilot to sort issues with the pie chart!
+
+}
 
 
-unit Unit7;
+unit Main;
 
 interface
 
@@ -86,7 +93,7 @@ type
     Edit17: TEdit;
     RadioButton16: TRadioButton;
     Button4: TButton;
-    Button5: TButton;
+    Button6: TButton;
 
     procedure IdUDPServer1UDPRead(AThread: TIdUDPListenerThread;
       const AData: TIdBytes; ABinding: TIdSocketHandle);
@@ -118,6 +125,7 @@ type
     procedure RadioButton16Click(Sender: TObject);
     procedure Button4Click(Sender: TObject);
     procedure Button5Click(Sender: TObject);
+    procedure Button6Click(Sender: TObject);
 
 
   private
@@ -148,8 +156,9 @@ implementation
 {$R *.dfm}
 
 uses
+  DiveDM,
   Hosts,
-  Hosts1,
+  Display,
   MultiNIC;
 
 
@@ -186,13 +195,37 @@ end;
 
 procedure TForm7.Button4Click(Sender: TObject);     // Show the Hosts form
 begin
-  frmHosts.ShowModal;
-  frmHosts1.ShowModal;
+  if IdUDPServer1.Active then
+    IdUDPServer1.Active := false;
+  if IdUDPServer2.Active then
+    IdUDPServer2.Active := false;
+  if IdUDPServer3.Active then
+    IdUDPServer3.Active := false;
+  if IdUDPServer4.Active then
+    IdUDPServer4.Active := false;
+  Label2.Caption := 'Not Attached';
+  Button1.Caption := 'Connect';
+  frmHosts.Show;
 end;
 
 procedure TForm7.Button5Click(Sender: TObject);     // Show the NIC's form
 begin
-  frmMultiNIC.ShowModal;
+  if IdUDPServer1.Active then
+    IdUDPServer1.Active := false;
+  if IdUDPServer2.Active then
+    IdUDPServer2.Active := false;
+  if IdUDPServer3.Active then
+    IdUDPServer3.Active := false;
+  if IdUDPServer4.Active then
+    IdUDPServer4.Active := false;
+  Label2.Caption := 'Not Attached';
+  Button1.Caption := 'Connect';
+  frmMultiNIC.Show;
+end;
+
+procedure TForm7.Button6Click(Sender: TObject);       // Show DR Data Display
+begin
+  frmDisplay.Show;
 end;
 
 procedure TForm7.FormCreate(Sender: TObject);
@@ -206,22 +239,27 @@ procedure TForm7.Button1Click(Sender: TObject);   // Connect Button
 begin
 // IdUDPServer1.Bindings.add.IP := '0';
 // IdUDPServer1.DefaultPort := Edit1.Text;
-  if IdUDPServer1.Active then
-    begin IdUDPServer1.Active := false;
-    IdUDPServer2.Active := false;
-    IdUDPServer3.Active := false;
-    IdUDPServer4.Active := false;
-    Label2.Caption := 'Not Attached';
-    Button1.Caption := 'Connect';
-  end
+  if frmHosts.UDPClient.Active then
+    frmHosts.UDPClient.Active := false;
+
+  if IdUDPServer3.Active then
+    begin
+      IdUDPServer1.Active := false;
+      IdUDPServer2.Active := false;
+      IdUDPServer3.Active := false;
+      IdUDPServer4.Active := false;
+      Label2.Caption := 'Not Attached';
+      Button1.Caption := 'Connect';
+    end
   else
-    begin IdUDPServer1.Active := true;
-    IdUDPServer2.Active := true;
-    IdUDPServer3.Active := true;
-    IdUDPServer4.Active := true;
-    Label2.Caption := 'Attached to 4 UDP ports!';
-    Button1.Caption := 'Disconnect';
-  end
+    begin
+//      IdUDPServer1.Active := true;                                // this is the same port used in Display so raises an exception.
+      IdUDPServer2.Active := true;
+      IdUDPServer3.Active := true;
+      IdUDPServer4.Active := true;
+      Label2.Caption := 'Attached to 4 UDP ports!';
+      Button1.Caption := 'Disconnect';
+    end
 
 end;
 
@@ -231,7 +269,7 @@ procedure TForm7.IdUDPServer1UDPRead(AThread: TIdUDPListenerThread;
 
 begin
   Gauge1.BackColor := clBtnFace;
-  s1:= BytesToString(Adata, IndyTextEncoding_UTF8);
+  s1:= Trim(BytesToString(AData, IndyTextEncoding_UTF8));
   Inc(tot091);
   if s1 = s1Old then
   begin            // same message
@@ -300,7 +338,7 @@ begin
     Gauge1.ForeColor := clGreen;
   end;
 
-  if c1 >= 10 then c1 := c1 - 10;                 // should never get here
+  if c1 >= 10 then c1 := c1 - 10;       // should never get here but just in case...
 
 end;
 
@@ -311,14 +349,14 @@ procedure TForm7.IdUDPServer2UDPRead(AThread: TIdUDPListenerThread;
 
 begin
   Gauge2.BackColor := clBtnFace;
-  s2:= BytesToString(Adata, IndyTextEncoding_UTF8);
+  s2:= Trim(BytesToString(Adata, IndyTextEncoding_UTF8));
   Inc(tot092);
   if s2 = s2Old then
   begin
     Inc(c2);
   end
   else begin
-    c2 := 1;            // restart counter
+    c2 := 1;            // restart packet counter
     s2Old := s2;
     splitString2 := mySplit(s2);
     Memo2.Lines.Add('From: ' + ABinding.PeerIP + ' Port: ' + IntToStr(ABinding.PeerPort) + sLinebreak + s2 + sLinebreak );
@@ -382,7 +420,7 @@ procedure TForm7.IdUDPServer3UDPRead(AThread: TIdUDPListenerThread;
 
 begin
   Gauge3.BackColor := clBtnFace;
-  s3:= BytesToString(Adata, IndyTextEncoding_UTF8);
+  s3:= Trim(BytesToString(Adata, IndyTextEncoding_UTF8));
   Inc(tot093);
   if s3 = s3Old then
   begin
@@ -452,7 +490,7 @@ procedure TForm7.IdUDPServer4UDPRead(AThread: TIdUDPListenerThread;
 
 begin
   Gauge4.BackColor := clBtnFace;
-  s4:= BytesToString(Adata, IndyTextEncoding_UTF8);
+  s4:= Trim(BytesToString(Adata, IndyTextEncoding_UTF8));
   Inc(tot094);
   if s4 = s4Old then
   begin
