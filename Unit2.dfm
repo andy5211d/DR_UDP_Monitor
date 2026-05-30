@@ -2,7 +2,7 @@ object Form2: TForm2
   Left = 0
   Top = 0
   Width = 926
-  Height = 995
+  Height = 1149
   AutoScroll = True
   Caption = 'Message Decode'
   Color = clBtnFace
@@ -33,13 +33,13 @@ object Form2: TForm2
     Left = 21
     Top = 39
     Width = 868
-    Height = 893
+    Height = 905
     Columns = <>
     TabOrder = 1
     ViewStyle = vsReport
   end
   object Clear: TButton
-    Left = 791
+    Left = 639
     Top = 8
     Width = 75
     Height = 25
@@ -55,5 +55,13 @@ object Form2: TForm2
     Caption = 'Continuous Decode of Selected Message'
     TabOrder = 3
     WordWrap = True
+    OnClick = CheckBox1Click
+  end
+  object StringGrid1: TStringGrid
+    Left = 569
+    Top = 950
+    Width = 320
+    Height = 120
+    TabOrder = 4
   end
 end

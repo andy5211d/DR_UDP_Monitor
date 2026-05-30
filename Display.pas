@@ -1,6 +1,14 @@
 ﻿{ ************************************* }
 { Copyright(c) 2007-2023 Malcolm Taylor }
+{ Copyright(c) 2022-2026 Andy Hewat     }
 { ************************************* }
+
+{
+ A Unit for DR-UDP Monitor programme.
+ Original from Malcolm's DR2Video app.
+
+ 2026-05-17 V1.1  Modified to 'share' UDP ports with Main unit.
+}
 
 unit Display;
 
@@ -86,7 +94,6 @@ type
     PnlTV: TPanel;
     ReportQuery: TEDBQuery;
     Secs: TDBText;
-    UDPServer: TIdUDPServer;
     IdTCPClientXfer: TIdTCPClient;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -104,12 +111,15 @@ type
     procedure ExportToXML(Fname: string);
     procedure GetUpdateFile(Msg: string);
     procedure SiLang1LanguageChanging(Sender: TObject; const NewLanguage: Integer; var AllowChange: Boolean);
+
   private
     { Private declarations }
     procedure MakeRTL;
     procedure MakeLTR;
   public
     { Public declarations }
+    procedure FeedUdpText(const RawMsg: string);
+    procedure ProcessUdpText(const RawMsg: string);
   end;
 
 var
@@ -121,13 +131,15 @@ implementation
 {$r *.dfm}
 
 uses
-  DiveDM,
+  DiveDM,            // what is being used?   =   UDPServerPort,  FileTransferPort,  Language, DRHost, DataPath, LoadFromFile, DM,  ScoreBTable
+  Main,
   XML.VerySimple;
 
 const
   Sep: string = '|'; // This is for file xfer processing
-  NoScore = 4096; // magic number indicating no total score
-  NoRank = 1000; // magic number indicating no ranking
+  NoScore = 4096;    // magic number indicating no total score
+  NoRank  = 1000;    // magic number indicating no ranking
+  AnEncoding: String = ('TEncoding.ANSI');
 
 var
   MessageList: TStringList;
@@ -137,7 +149,7 @@ var
 
 procedure TfrmDisplay.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
-  UDPServer.Active := False;
+//  UDPServer.Active := False;
 end;
 
 procedure TfrmDisplay.FormCreate(Sender: TObject);
@@ -166,17 +178,18 @@ begin
   Top := R.Top;
   Left := R.Left;
   ListInterval := 250;
-  // start the UDP Server
-  UDPServer.Bindings.Clear;
-  UDPServer.DefaultPort := UDPServerPort; // 58091
-  UDPServer.Active := True;
-  IdTCPClientXfer.Port := FileTransferPort; // 58291
+  // start the UDP Server  *** Now removed as UDP port bindings are in Main ***
+  // UDPServer.Bindings.Clear;
+  // UDPServer.DefaultPort := UDPServerPort;     // 58091 UDP
+  // UDPServer.Active := True;
+  // UDPServer.Active := False;
+  IdTCPClientXfer.Port := FileTransferPort;   // 58291 TCP
   HostNameList := TStringList.Create;
-  HostNameList.Sorted := True; // need this
-  HostNameList.Duplicates := DupIgnore; // need this
+  HostNameList.Sorted := True;
+  HostNameList.Duplicates := DupIgnore;
   MessageList := TStringList.Create;
-  MessageList.Sorted := True; // need this
-  MessageList.Duplicates := DupIgnore; // need this
+  MessageList.Sorted := True;
+  MessageList.Duplicates := DupIgnore;
   FrmDisplay.ScaleBy(300, 544);
   AllDone := False;
   TransferringData := False;
@@ -184,8 +197,8 @@ end;
 
 procedure TfrmDisplay.FormDestroy(Sender: TObject);
 begin
-  if UDPServer.Active then
-    UDPServer.Active := False;
+//  if UDPServer.Active then
+//    UDPServer.Active := False;
   HostNameList.Free;
   MessageList.Free;
 end;
@@ -196,16 +209,88 @@ begin
   Synchro := False;
   SiLang1.ActiveLanguage := Language;
   UpdateTimer.Interval := ListInterval;
-  if not UDPServer.Active then
-    UDPServer.Active := True;
+//  if not UDPServer.Active then UDPServer.Active := True;
   TransferringData := False;
 end;
+
+procedure TfrmDisplay.FeedUdpText(const RawMsg: string);
+begin
+  // Called from Main’s listener thread. Safe because we use TThread.Queue inside.
+  ProcessUdpText(RawMsg);
+end;
+
+procedure TfrmDisplay.ProcessUdpText(const RawMsg: string);
+var
+  H, Msg, N: string;
+  SArray: TArray<string>;
+begin
+  Msg := Trim(RawMsg);
+
+  // check for end of message
+  if Msg.EndsWith('^') then
+  begin
+    if Msg.EndsWith('|^') then
+      Msg := Msg.Substring(0, Msg.IndexOf('|^'))
+    else
+      Msg := Msg.Substring(0, Msg.IndexOf('^'));
+
+    SArray := Msg.Split(['|']);
+    if Length(SArray) = 0 then Exit;
+
+    if ((SArray[0] = 'UPDATE') or (SArray[0] = 'AVIDEO')) then
+    begin
+      if Visible then
+      begin
+        H := SArray[2]; // sending Host
+        N := SArray[3]; // event mode
+
+        if ((Length(DRHost) = 0) or (DRHost = H) or (N = '0')) then
+          TThread.Queue(nil,
+            procedure
+            begin
+              AllDone := False;
+              MessageList.Add(Msg);
+              if not UpdateTimer.Enabled then
+                UpdateTimer.Enabled := True;
+            end);
+      end;
+    end
+    else if (SArray[0] = 'AWARD') then
+    begin
+      if Visible then
+      begin
+        H := SArray[1]; // sending Host
+        N := SArray[2]; // event mode
+
+        if ((Length(DRHost) = 0) or (DRHost = H) or (N = '0')) then
+          TThread.Queue(nil,
+            procedure
+            begin
+              AllDone := False;
+              MessageList.Add(Msg);
+              if not UpdateTimer.Enabled then
+                UpdateTimer.Enabled := True;
+            end);
+      end;
+    end
+    else if (SArray[0] = 'DIVERECORDER') then
+    begin
+      TThread.Queue(nil,
+        procedure
+        begin
+          HostNameList.Add(SArray[1]);
+        end);
+    end;
+  end;
+end;
+
 
 procedure TfrmDisplay.UDPServerUDPRead(AThread: TIdUDPListenerThread; const AData: TIdBytes; ABinding: TIdSocketHandle);
 var
   H, Msg, N: string;
   SArray: TArray<string>;
 begin
+
   // read datagram
   Msg := Trim(BytesToString(AData, IndyTextEncoding_UTF8));
   // check for end of message
@@ -421,13 +506,13 @@ begin
 
     // Msg does have a terminating '|^'
     Msg := Msg.Substring(0, Msg.IndexOf('|^'));
-
+{
     if not UseHalf then
     begin
       // need to replace '½' with '.5' where '.' should be DecSep (for consistency)
       Msg := StringReplace(Msg, '½', DecSep + '5', [RfReplaceAll]);
     end;
-
+ }
     SArray := Msg.Split(['|']);
 
     PnlTV.Visible := True;
@@ -498,6 +583,7 @@ begin
     // DM.ScoreBTable['CumPoints'] := T;
 
     // Experiment to fix vMix shortcomings  (not sure this is now needed???)
+{
     if not(DecSep = '.') then
     begin
       T := DM.ScoreBTable['Tariff'];
@@ -510,7 +596,7 @@ begin
       T := T.Replace('.', DecSep);
       DM.ScoreBTable['CumPoints'] := T;
     end;
-
+ }
     // strip team code from names
     T := DM.ScoreBTable.FieldByName('DiverA').AsString;
     if T.Contains('--') then
@@ -530,7 +616,6 @@ begin
     Official := not DM.ScoreBTable.FieldByName('J1').IsNull;
 
     // now do TempResTable data
-
     DM.TempResTable.Last;
     while not DM.TempResTable.Bof do
       DM.TempResTable.Delete;
@@ -554,7 +639,7 @@ begin
       N := SArray[I]; // Score
       if Length(N) > 0 then
       begin
-        S := N.Replace('.', DecSep);
+//        S := N.Replace('.', DecSep);
         // add padding
         Sp := 7 - Length(N);
         if Sp > 0 then
@@ -716,12 +801,13 @@ var
   T: string;
   SArray: TArray<string>;
 begin
+{
   if not UseHalf then
   begin
     // need to replace '½' with '.5'
     Msg := StringReplace(Msg, '½', '.5', [RfReplaceAll]);
   end;
-
+}
   // this will happen after each award is received by DiveRecorder
   SArray := Msg.Split(['|']);
 
@@ -757,7 +843,7 @@ begin
 
   DM.ScoreBTable.Edit;
   // only need to update SBTable["SBMode"];
-  DM.ScoreBTable['SBMode'] := 2; // Ranking disply used to indicate 'completed'
+  DM.ScoreBTable['SBMode'] := 2; // Ranking display used to indicate 'completed'
   DM.ScoreBTable.Post;
   AllDone := True; // Completed
   DoTV;
@@ -772,6 +858,7 @@ var
 begin
   // set up the XML file
   XML := TXmlVerySimple.Create;
+{
   try
     case EncodeIndex of
       0:
@@ -781,6 +868,7 @@ begin
       2:
         XML.Encoding := 'utf-16';
     end;
+
     // Add the DocumentElement
     XML.AddChild('diving');
 
@@ -822,6 +910,7 @@ begin
   finally
     XML.Free;
   end;
+}
 end;
 
 procedure TfrmDisplay.ExportToCSV(Fname: string);
@@ -830,6 +919,7 @@ var
   AList: TStringList;
   S: string;
 begin
+{
   // This exports the data to a file
   // Uses AnEncoding as set in TfrmMain
   AList := TStringList.Create;
@@ -875,6 +965,7 @@ begin
   finally
     AList.Free;
   end;
+}
 end;
 
 procedure TfrmDisplay.HorizontalExport(Fname: string);
@@ -884,6 +975,7 @@ var
   S: string;
   I, D, L, R, X: Integer;
 begin
+{
   // custom 'hack' for Horizontal - results in lines of 12 divers in CSV format
   // This exports the data to a file
   // Uses AnEncoding as set in TfrmMain
@@ -924,7 +1016,7 @@ begin
         # Write each complete set of 12 (or less) divers
         # Write remainder
       }
-
+      {
       ReportQuery.First; // make sure
       S := '';
       L := R div D; // number of groups of 12 divers, may be none
@@ -962,6 +1054,7 @@ begin
       begin
         for Fld in ReportQuery.Fields do
         begin
+
           // insert delimiter if not first field
           if Length(S) > 0 then
             S := S + CSVSep;
@@ -972,7 +1065,9 @@ begin
             S := S + Fld.Text;
         end;
         ReportQuery.Next;
+
       end;
+
       if Length(S) > 0 then
         AList.Add(S);
       // Finally write everything to file
@@ -980,7 +1075,14 @@ begin
     finally
       AList.Free;
     end;
+    finally
+
+    end;
   end;
+    finally
+
+    end;
+}
 end;
 
 procedure TfrmDisplay.DoTV;
@@ -991,6 +1093,7 @@ var
   Write_err: Boolean;
   AList: TStringList;
 begin
+{
   if ((not CombineAB) and (EventB = 'b')) then
   begin
     // need to insert a 'B' into file name
@@ -1003,7 +1106,7 @@ begin
     RPath := RankPath;
   end;
   Write_err := False;
-
+}
   if ReportQuery.Active then
   begin
     ReportQuery.Close;
@@ -1052,7 +1155,7 @@ begin
   end;
   ReportQuery.SQL.Add
     ('CAST("Points" AS VARCHAR(6)) AS Score, CAST("CumPoints" AS VARCHAR(6)) AS Total, "Place" AS Rank,');
-  ReportQuery.SQL.Add(QuotedStr(FlagsPath) + ' || "TeamCodeA" || ' + QuotedStr('.' + FlagsExtn) + ' AS Flag,');
+//  ReportQuery.SQL.Add(QuotedStr(FlagsPath) + ' || "TeamCodeA" || ' + QuotedStr('.' + FlagsExtn) + ' AS Flag,');
   ReportQuery.SQL.Add('CAST(EStart AS VARCHAR(4)) AS StartNo,');
   ReportQuery.SQL.Add('CAST(ERound AS VARCHAR(2)) AS Round,');
   ReportQuery.SQL.Add('"EventTitle", "TeamA" AS TeamName,');
@@ -1062,7 +1165,7 @@ begin
   ReportQuery.Prepare;
   ReportQuery.Open;
   Rcount := ReportQuery.RecordCount;
-
+{
   case TVOut of
     0:
       begin
@@ -1084,7 +1187,7 @@ begin
       end;
 
   end;
-
+}
   { Set Andy's UName (Update file name) based on FName }
   if Synchro then
     Uname := Fname.Replace('Synchro', 'SUpdate')
@@ -1101,7 +1204,7 @@ begin
   ReportQuery.SQL.Add
     ('SELECT CAST(IF("Place"<0 THEN ''('' || CAST(ABS("Place") AS VARCHAR(2)) || '')'' ELSE CAST("Place" AS VARCHAR(2))) AS VARCHAR(4)) AS Rank, ');
   ReportQuery.SQL.Add('"Name", "TCode" AS Team, "Score",');
-  ReportQuery.SQL.Add(QuotedStr(FlagsPath) + ' || "TCode" || ' + QuotedStr('.' + FlagsExtn) + ' AS Flag,');
+//  ReportQuery.SQL.Add(QuotedStr(FlagsPath) + ' || "TCode" || ' + QuotedStr('.' + FlagsExtn) + ' AS Flag,');
   ReportQuery.SQL.Add('"StartOrder" AS StartNo,');
   if AllDone then
     ReportQuery.SQL.Add('1 AS Completed')
@@ -1112,7 +1215,7 @@ begin
 
   ReportQuery.Prepare;
   ReportQuery.Open;
-
+{
   case TVOut of
     0:
       begin
@@ -1125,7 +1228,7 @@ begin
     1:
       ExportToXML(RPath);
   end;
-
+}
   ReportQuery.Close;
   ReportQuery.UnPrepare;
   if ((Rcount > 0) and (not Write_err)) then
@@ -1135,7 +1238,7 @@ begin
     AList := TStringList.Create;
     try
       AList.Add('New data available');
-      AList.SaveToFile(Uname, AnEncoding);
+//      AList.SaveToFile(Uname, AnEncoding);
     finally
       AList.Free;
     end;

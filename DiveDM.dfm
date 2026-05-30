@@ -85,7 +85,7 @@ object DM: TDM
     Top = 240
   end
   object siLangRTDM: TsiLangRT
-    Version = '7.9.7.1'
+    Version = '7.9.7'
     StringsTypes.Strings = (
       'TIB_STRINGLIST'
       'TSTRINGLIST')
