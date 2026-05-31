@@ -2,7 +2,7 @@
 { Copyright(c) 2007-2023 Malcolm Taylor }
 { ************************************* }
 //
-//  DiveDM unit taken from DR2Video.  These Units are not the same in every app!
+//  DiveDM unit taken from DR2Video.  These Units are not the same in every DR app!
 //
 
 
@@ -162,6 +162,7 @@ var
   AFormatSettings: TFormatSettings;
   CombineAB, IncludeHeaders, UseHalf, Horizontal: Boolean;
   DStrings: TStringList;   {for the list of NICs }
+  HostNameList: TStringList;   {added by Copilot}
   AnEncoding: TEncoding;
 
 implementation

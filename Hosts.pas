@@ -1,14 +1,14 @@
-{ ************************************* }
-{ Copyright(c) 2007-2026  Andy Hewat    }
-{ ************************************* }
+{ ************************************** }
+{ Copyright(c) 2006-2005  Malcolm Taylor }
+{ Copyright(c) 2022-2026  Andy Hewat     }
+{ ************************************** }
 
 {
-  A Unit for Andy's DR-UDP Monitor programme.
-  >>>Original from Malcolm's DR2Video.
-  Generates the Hosts' window and allows user selection if more than one DR instance.
+  A Unit for the DR-UDP Monitor programme.
+  Original from Malcolm's DR2Video.
+  Generates the Hosts' window and allows user selection if more than one instance
+  of DiveRecorder is connected to the network.
 
-  *** This is not currently used in the App, but maybe in the future. Perhaps
-  to monitor a problem DR instance.  ****
 }
 
 
@@ -41,6 +41,7 @@ type
     RgpHosts: TRadioGroup;
     ScanTimer: TTimer;
     UDPClient: TIdUDPClient;
+    Label1: TLabel;
     procedure BtnExitClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure ScanTimerTimer(Sender: TObject);
@@ -63,39 +64,43 @@ implementation
 uses
   System.SysUtils,
   Main,
-  DiveDM,              // What is being used in this unit?     =  DRHost
-  Display,             // What is being used in this unit?     =  HostNameList
+  DiveDM,
+  Display,
   System.StrUtils;
-
-
-
 
 procedure TfrmHosts.BtnExitClick(Sender: TObject);
 begin
+  ScanTimer.Enabled := False;
   Close;
 end;
 
 procedure TfrmHosts.BtnHostsClick(Sender: TObject);
 var
   I: Integer;
-  s: string;
 begin
   RgpHosts.Items.Clear;
-  RgpHosts.Items.Add('All');  //  RgpHosts.Items.Add(SiLangRTHosts.GetTextOrDefault('IDS_7' (* 'All' *) ));
-  Repaint;
-  HostNameList.Clear;
-  Screen.Cursor := CrHourGlass;
-  ScanTimer.Enabled := True; // reads host list after 2 seconds
+  RgpHosts.Items.Add('All');
 
-  // now scan for any remote utilities     <ACH> but a max of 3
+if HostNameList = nil then
+begin
+  HostNameList := TStringList.Create;
+  HostNameList.Sorted := True;
+  HostNameList.Duplicates := dupIgnore;
+  HostNameList.CaseSensitive := False;
+end;
+HostNameList.Clear;  // <-- OK here, because you are starting a NEW scan
+  HostNameList.Clear;
+
+  Screen.Cursor := CrHourGlass;
+  ScanTimer.Enabled := True;
+
   for I := 1 to 3 do
   begin
-    //UDPClient.Broadcast('HELLO', UDPClientPort, BroadcastIP, IndyTextEncoding_UTF8);   // The original code by Malcolm.
     UDPClient.Broadcast('HELLO', UDPClientPort, BroadcastIP);
     Sleep(50);
   end;
-
 end;
+
 
 procedure TfrmHosts.FormCreate(Sender: TObject);
 begin
@@ -104,11 +109,10 @@ end;
 
 procedure TfrmHosts.FormDestroy(Sender: TObject);
 begin
-  if UDPClient.Active then
-    UDPClient.Active := False;
-//  HostNameList.Free;
-//  MessageList.Free;
+  ScanTimer.Enabled := False;      // stop timer first
+  // Do NOT free HostNameList here – it is owned by DiveDM
 end;
+
 
 procedure TfrmHosts.RgpHostsClick(Sender: TObject);
 var
@@ -117,26 +121,71 @@ begin
 
   I := RgpHosts.ItemIndex;
   if I < 1 then
-    DRHost := ''
+    begin
+      DRHost := '';
+      Form7.Edit16.text := 'All Hosts';
+    end
   else
-    DRHost := RgpHosts.Items[I];
-
+    begin
+      DRHost := RgpHosts.Items[I];
+      Form7.Edit16.text := 'DR Display ONLY showing data from: ' + DRHost;
+    end;
 end;
+
 
 procedure TfrmHosts.ScanTimerTimer(Sender: TObject);
 var
   S: string;
+  keepHost: string;
+  idx: Integer;
 begin
+  // Stop timer first so it only fires once per scan
+  ScanTimer.Enabled := False;
 
-  for S in HostNameList do
-    RgpHosts.Items.Add(S);
-  ScanTimer.Enabled := FALSE;
-  if DRHost <> '' then
-    RgpHosts.ItemIndex := RgpHosts.Items.IndexOf(DRHost);
-    if RgpHosts.ItemIndex < 1 then
-      RgpHosts.ItemIndex := 0;      // default = All
-    Screen.Cursor := CrDefault;
+  Screen.Cursor := crDefault;
 
+  // Remember current selection (if any)
+  keepHost := DRHost;
+
+  // Nothing discovered yet?
+  if (HostNameList = nil) or (HostNameList.Count = 0) then
+  begin
+    // Still show basic list
+    RgpHosts.Items.BeginUpdate;
+    try
+      RgpHosts.Items.Clear;
+      RgpHosts.Items.Add('All');
+      RgpHosts.ItemIndex := 0;
+    finally
+      RgpHosts.Items.EndUpdate;
+    end;
+    Exit;
+  end;
+
+  // Rebuild RadioGroup in one batch (avoids slow "reformatting")
+  RgpHosts.Items.BeginUpdate;
+  try
+    RgpHosts.Items.Clear;
+    RgpHosts.Items.Add('All');
+
+  for idx := 0 to HostNameList.Count - 1 do
+    RgpHosts.Items.Add(HostNameList[idx]);
+
+    // Restore selection if possible
+    if keepHost <> '' then
+    begin
+      idx := RgpHosts.Items.IndexOf(keepHost);
+      if idx >= 1 then
+        RgpHosts.ItemIndex := idx
+      else
+        RgpHosts.ItemIndex := 0;  // fallback to All
+    end
+    else
+      RgpHosts.ItemIndex := 0;
+
+  finally
+    RgpHosts.Items.EndUpdate;
+  end;
 end;
 
 end.

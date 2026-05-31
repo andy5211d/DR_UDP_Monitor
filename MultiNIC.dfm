@@ -2,8 +2,8 @@ object frmMultiNIC: TfrmMultiNIC
   Left = 0
   Top = 0
   Caption = 'MultiNIC'
-  ClientHeight = 449
-  ClientWidth = 264
+  ClientHeight = 432
+  ClientWidth = 258
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText

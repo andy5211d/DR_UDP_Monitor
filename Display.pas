@@ -1,12 +1,14 @@
 ﻿{ ************************************* }
 { Copyright(c) 2007-2023 Malcolm Taylor }
+{ Copyright(c) 2022-2026 Andy Hewat     }
 { ************************************* }
 
-//
-// A Unit for Andy's DR-UDP Monitor programme.
+{
+ A Unit for DR-UDP Monitor programme.
+ Original from Malcolm's DR2Video app.
 
-// Original from Malcolm's DR2Video
-//
+ 2026-05-17 V1.1  Modified to 'share' UDP ports with Main unit.
+}
 
 unit Display;
 
@@ -92,7 +94,6 @@ type
     PnlTV: TPanel;
     ReportQuery: TEDBQuery;
     Secs: TDBText;
-    UDPServer: TIdUDPServer;
     IdTCPClientXfer: TIdTCPClient;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -110,12 +111,15 @@ type
     procedure ExportToXML(Fname: string);
     procedure GetUpdateFile(Msg: string);
     procedure SiLang1LanguageChanging(Sender: TObject; const NewLanguage: Integer; var AllowChange: Boolean);
+
   private
     { Private declarations }
     procedure MakeRTL;
     procedure MakeLTR;
   public
     { Public declarations }
+    procedure FeedUdpText(const RawMsg: string);
+    procedure ProcessUdpText(const RawMsg: string);
   end;
 
 var
@@ -128,6 +132,7 @@ implementation
 
 uses
   DiveDM,            // what is being used?   =   UDPServerPort,  FileTransferPort,  Language, DRHost, DataPath, LoadFromFile, DM,  ScoreBTable
+  Main,
   XML.VerySimple;
 
 const
@@ -144,7 +149,7 @@ var
 
 procedure TfrmDisplay.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
-  UDPServer.Active := False;
+//  UDPServer.Active := False;
 end;
 
 procedure TfrmDisplay.FormCreate(Sender: TObject);
@@ -173,17 +178,18 @@ begin
   Top := R.Top;
   Left := R.Left;
   ListInterval := 250;
-  // start the UDP Server
-  UDPServer.Bindings.Clear;
-  UDPServer.DefaultPort := UDPServerPort;     // 58091
-  UDPServer.Active := True;
-  IdTCPClientXfer.Port := FileTransferPort;   // 58291
+  // start the UDP Server  *** Now removed as UDP port bindings are in Main ***
+  // UDPServer.Bindings.Clear;
+  // UDPServer.DefaultPort := UDPServerPort;     // 58091 UDP
+  // UDPServer.Active := True;
+  // UDPServer.Active := False;
+  IdTCPClientXfer.Port := FileTransferPort;   // 58291 TCP
   HostNameList := TStringList.Create;
-  HostNameList.Sorted := True;                // need this
-  HostNameList.Duplicates := DupIgnore;       // need this
+  HostNameList.Sorted := True;
+  HostNameList.Duplicates := DupIgnore;
   MessageList := TStringList.Create;
-  MessageList.Sorted := True;                 // need this
-  MessageList.Duplicates := DupIgnore;        // need this
+  MessageList.Sorted := True;
+  MessageList.Duplicates := DupIgnore;
   FrmDisplay.ScaleBy(300, 544);
   AllDone := False;
   TransferringData := False;
@@ -191,8 +197,8 @@ end;
 
 procedure TfrmDisplay.FormDestroy(Sender: TObject);
 begin
-  if UDPServer.Active then
-    UDPServer.Active := False;
+//  if UDPServer.Active then
+//    UDPServer.Active := False;
   HostNameList.Free;
   MessageList.Free;
 end;
@@ -203,16 +209,88 @@ begin
   Synchro := False;
   SiLang1.ActiveLanguage := Language;
   UpdateTimer.Interval := ListInterval;
-  if not UDPServer.Active then
-    UDPServer.Active := True;
+//  if not UDPServer.Active then UDPServer.Active := True;
   TransferringData := False;
 end;
+
+procedure TfrmDisplay.FeedUdpText(const RawMsg: string);
+begin
+  // Called from Main’s listener thread. Safe because we use TThread.Queue inside.
+  ProcessUdpText(RawMsg);
+end;
+
+procedure TfrmDisplay.ProcessUdpText(const RawMsg: string);
+var
+  H, Msg, N: string;
+  SArray: TArray<string>;
+begin
+  Msg := Trim(RawMsg);
+
+  // check for end of message
+  if Msg.EndsWith('^') then
+  begin
+    if Msg.EndsWith('|^') then
+      Msg := Msg.Substring(0, Msg.IndexOf('|^'))
+    else
+      Msg := Msg.Substring(0, Msg.IndexOf('^'));
+
+    SArray := Msg.Split(['|']);
+    if Length(SArray) = 0 then Exit;
+
+    if ((SArray[0] = 'UPDATE') or (SArray[0] = 'AVIDEO')) then
+    begin
+      if Visible then
+      begin
+        H := SArray[2]; // sending Host
+        N := SArray[3]; // event mode
+
+        if ((Length(DRHost) = 0) or (DRHost = H) or (N = '0')) then
+          TThread.Queue(nil,
+            procedure
+            begin
+              AllDone := False;
+              MessageList.Add(Msg);
+              if not UpdateTimer.Enabled then
+                UpdateTimer.Enabled := True;
+            end);
+      end;
+    end
+    else if (SArray[0] = 'AWARD') then
+    begin
+      if Visible then
+      begin
+        H := SArray[1]; // sending Host
+        N := SArray[2]; // event mode
+
+        if ((Length(DRHost) = 0) or (DRHost = H) or (N = '0')) then
+          TThread.Queue(nil,
+            procedure
+            begin
+              AllDone := False;
+              MessageList.Add(Msg);
+              if not UpdateTimer.Enabled then
+                UpdateTimer.Enabled := True;
+            end);
+      end;
+    end
+    else if (SArray[0] = 'DIVERECORDER') then
+    begin
+      TThread.Queue(nil,
+        procedure
+        begin
+          HostNameList.Add(SArray[1]);
+        end);
+    end;
+  end;
+end;
+
 
 procedure TfrmDisplay.UDPServerUDPRead(AThread: TIdUDPListenerThread; const AData: TIdBytes; ABinding: TIdSocketHandle);
 var
   H, Msg, N: string;
   SArray: TArray<string>;
 begin
+
   // read datagram
   Msg := Trim(BytesToString(AData, IndyTextEncoding_UTF8));
   // check for end of message
