@@ -1,14 +1,15 @@
 object Form7: TForm7
   Left = 388
   Top = 145
-  Width = 1004
-  Height = 1194
+  Width = 976
+  Height = 1204
   Margins.Left = 12
   Margins.Top = 12
   Margins.Right = 12
   Margins.Bottom = 12
+  VertScrollBar.Visible = False
   AutoScroll = True
-  Caption = 'DR UDP Data Monitor - V4.2.3'
+  Caption = 'DR UDP Data Monitor - V4.2.4'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -58,7 +59,7 @@ object Form7: TForm7
     Margins.Top = 12
     Margins.Right = 12
     Margins.Bottom = 12
-    Caption = 'Copyright(c) Andy Hewat 2026.05.30'
+    Caption = 'Copyright(c) Andy Hewat 2026.06.10'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -8
@@ -1117,7 +1118,7 @@ object Form7: TForm7
     end
     object Edit13: TEdit
       Left = 215
-      Top = 175
+      Top = 94
       Width = 55
       Height = 25
       Margins.Left = 12
@@ -1157,7 +1158,7 @@ object Form7: TForm7
     end
     object Edit17: TEdit
       Left = 215
-      Top = 94
+      Top = 178
       Width = 55
       Height = 25
       Margins.Left = 12
@@ -1384,39 +1385,65 @@ object Form7: TForm7
     TabOrder = 10
     OnClick = Button5Click
   end
+  object Memo5: TMemo
+    Left = 971
+    Top = 58
+    Width = 654
+    Height = 1049
+    Margins.Left = 5
+    Margins.Top = 5
+    Margins.Right = 5
+    Margins.Bottom = 5
+    ScrollBars = ssVertical
+    TabOrder = 11
+    OnChange = Memo5Change
+  end
+  object Button7: TButton
+    Left = 1232
+    Top = 24
+    Width = 89
+    Height = 24
+    Margins.Left = 5
+    Margins.Top = 5
+    Margins.Right = 5
+    Margins.Bottom = 5
+    Caption = 'Debug'
+    TabOrder = 12
+    OnClick = Button7Click
+  end
   object IdUDPServer1: TIdUDPServer
     Bindings = <>
     DefaultPort = 0
     OnUDPRead = IdUDPServer1UDPRead
-    Left = 1046
-    Top = 111
+    Left = 990
+    Top = 1007
   end
   object IdUDPServer2: TIdUDPServer
     Bindings = <>
     DefaultPort = 0
     OnUDPRead = IdUDPServer2UDPRead
-    Left = 1049
-    Top = 162
+    Left = 1065
+    Top = 1010
   end
   object IdUDPServer3: TIdUDPServer
     Bindings = <>
     DefaultPort = 0
     OnUDPRead = IdUDPServer3UDPRead
-    Left = 1050
-    Top = 231
+    Left = 1130
+    Top = 1007
   end
   object IdUDPServer4: TIdUDPServer
     Bindings = <>
     DefaultPort = 0
     OnUDPRead = IdUDPServer4UDPRead
-    Left = 1049
-    Top = 294
+    Left = 1193
+    Top = 1006
   end
   object StandardColorMap1: TStandardColorMap
     HighlightColor = clBtnHighlight
     UnusedColor = clWhite
     MenuColor = clMenu
-    Left = 1049
-    Top = 358
+    Left = 1257
+    Top = 1006
   end
 end

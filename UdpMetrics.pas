@@ -42,6 +42,7 @@ type
     UnknownTypeCount: Integer; // unknown header
 
     RunHist: TRunHist;         //
+    AvgGapMs: UInt64;          // average packet gap in ms
   end;
 
 var
@@ -58,6 +59,8 @@ procedure Metrics58091_IncIncomplete(Kind: T58091MsgKind; Origin: Integer);
 procedure Metrics58091_IncExtra(Kind: T58091MsgKind; Origin: Integer);
 procedure Metrics58091_IncCorrupt(Kind: T58091MsgKind; Origin: Integer);
 procedure Metrics58091_IncUnknown(Kind: T58091MsgKind; Origin: Integer);
+procedure Metrics58091_ObserveGap(Kind: T58091MsgKind; Origin: Integer; GapMs: UInt64);
+
 
 implementation
 
@@ -83,6 +86,8 @@ begin
 
   for i := Low(M.RunHist) to High(M.RunHist) do
     M.RunHist[i] := 0;
+
+  M.AvgGapMs := 0;
 end;
 
 procedure Metrics58091_ResetAll;
@@ -104,6 +109,33 @@ begin
     ClearOriginMetrics(Metrics58091Referee[i]);
     ClearOriginMetrics(Metrics58091Update[i]);
     Metrics58091Identity[i] := '';
+  end;
+end;
+
+function GetMetricsRef(Kind: T58091MsgKind; Origin: Integer): POriginMetrics;
+begin
+  if (Origin < 0) or (Origin > 255) then
+    Exit(nil);
+
+  case Kind of
+    mkReferee: Result := @Metrics58091Referee[Origin];
+    mkUpdate:  Result := @Metrics58091Update[Origin];
+  else
+    Result := nil;
+  end;
+end;
+
+procedure Metrics58091_ObserveGap(Kind: T58091MsgKind; Origin: Integer; GapMs: UInt64);
+var
+  P: POriginMetrics;
+begin
+  MetricsCS.Enter;
+  try
+    P := GetMetricsRef(Kind, Origin);
+    if P <> nil then
+        P^.AvgGapMs := GapMs;
+  finally
+    MetricsCS.Leave;
   end;
 end;
 
@@ -130,19 +162,6 @@ begin
     M.MovAvgRun := Sum / M.WindowCount
   else
     M.MovAvgRun := 0.0;
-end;
-
-function GetMetricsRef(Kind: T58091MsgKind; Origin: Integer): POriginMetrics;
-begin
-  if (Origin < 0) or (Origin > 255) then
-    Exit(nil);
-
-  case Kind of
-    mkReferee: Result := @Metrics58091Referee[Origin];
-    mkUpdate:  Result := @Metrics58091Update[Origin];
-  else
-    Result := nil;
-  end;
 end;
 
 // ------------------------------------------------------------

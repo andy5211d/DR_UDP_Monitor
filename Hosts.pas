@@ -8,7 +8,6 @@
   Original from Malcolm's DR2Video.
   Generates the Hosts' window and allows user selection if more than one instance
   of DiveRecorder is connected to the network.
-
 }
 
 
@@ -127,8 +126,15 @@ begin
     end
   else
     begin
-      DRHost := RgpHosts.Items[I];
-      Form7.Edit16.text := 'DR Display ONLY showing data from: ' + DRHost;
+    var s := RgpHosts.Items[I];
+    var p := Pos(' (', s);
+
+    if p > 0 then
+      DRHost := Copy(s, 1, p-1)
+    else
+      DRHost := s;
+
+    Form7.Edit16.text := 'DR Display ONLY showing data from: ' + DRHost;
     end;
 end;
 
