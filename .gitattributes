@@ -1,2 +1,37 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# ---------------------------------------------------------
+# Delphi project safety rules
+# Prevent Git from auto-merging DFMs, DPROJs, RES files
+# ---------------------------------------------------------
+
+# Treat all Delphi form/datamodule files as binary
+*.dfm binary
+*.fmx binary
+
+# Prevent merge conflicts from corrupting project files
+*.dproj binary
+*.groupproj binary
+*.dpk binary
+*.dpr text eol=crlf
+
+# Resource files should never be merged
+*.res binary
+*.rc binary
+
+# Prevent Git from trying to merge compiled output
+*.exe binary
+*.dll binary
+*.bpl binary
+*.dcp binary
+*.dcu binary
+*.lib binary
+*.obj binary
+
+# Ignore line-ending differences for Pascal source
+*.pas text eol=crlf
+*.inc text eol=crlf
+
+# Treat INI and config files as text
+*.ini text eol=crlf
+*.cfg text eol=crlf
+*.json text eol=crlf
+*.xml text eol=crlf

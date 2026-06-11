@@ -1,0 +1,80 @@
+# ---------------------------------------------------------
+# Delphi / RAD Studio .gitignore
+# Keeps repo clean of build artefacts and IDE noise
+# ---------------------------------------------------------
+
+# Build output
+*.exe
+*.dll
+*.bpl
+*.dcp
+*.dcu
+*.dcpil
+*.drc
+*.map
+*.so
+*.apk
+*.aab
+*.ipa
+*.app
+*.o
+*.obj
+*.rsm
+
+# Delphi unit state
+*.local
+*.identcache
+*.tvsconfig
+*.dsk
+*.dproj.local
+*.dproj.bak
+*.groupproj.local
+
+# Intermediate files
+*.~*
+*.tmp
+*.log
+*.bak
+*.stat
+
+# Generated resource files
+*.res
+*.rsm
+*.dres
+*.drc
+
+# __history folder (Delphi backup copies)
+__history/
+__recovery/
+
+# Win32/Win64 build folders
+Win32/
+Win64/
+OSX32/
+OSX64/
+Android/
+iOSDevice/
+iOSSimulator/
+
+# RAD Studio autosave
+*.autosave
+
+# Binaries created by ElevateDB or other DB engines
+*.EDB*
+*.EDBLog
+*.EDBLck
+*.EDBCfg
+*.EDBCat
+*.EDBTbl
+*.EDBIdx
+*.EDBBlb
+*.EDBPbl
+*.EDBBkp
+*.EDBUpd
+
+# Python or scripts (if used)
+__pycache__/
+*.pyc
+
+# VS Code workspace files (if you use VS Code)
+.vscode/
