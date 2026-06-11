@@ -25,7 +25,8 @@
   2026.05.17 V4.2.0      Update to Main form to better show state of each packet type.  Correct elevateDB error on startup.
   2026-05-18 V4.2.1      Display (Scoreboard) now added and changed to share UDP ports with Main.  Host selection now implemented.
   2026-05-18 V4.2.2      UDP message DIVERECORDER moved to port 58091 (from 58092).
-  2026-05-30 V4.2.3      Correct 'Continous Decode' button operation (in Unit2).
+  2026-05-30 V4.2.3      Corrected 'Continous Decode' button operation (in Unit2)
+  2026-06-10 V4.2.4      Corrected the metrics data and 'clock' display. 'Timeout' issue, now set at 100ms.  Packet gap measurement added.
 }
 
 unit Main;
@@ -33,10 +34,11 @@ unit Main;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
+  System.StrUtils, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, IdBaseComponent, CommCtrl,
-  IdComponent, IdUDPBase, IdUDPServer, IdCustomTCPServer, IdSocksServer,
-  IdUDPClient, IdGlobal, IdSocketHandle, Vcl.Samples.Gauges, Vcl.ComCtrls, Unit2,
+  IdComponent, IdUDPBase, IdUDPServer, IdCustomTCPServer, IdSocksServer, IdStackConsts,
+  IdUDPClient, IdGlobal, IdSocketHandle, IdStack, Vcl.Samples.Gauges, Vcl.ComCtrls, Unit2,
   Vcl.ExtCtrls, Vcl.ActnMan, Vcl.ActnColorMaps, Vcl.Buttons, UdpMetrics;
 
 type
@@ -115,6 +117,8 @@ type
     Gauge11: TGauge;
     RadioButton11: TRadioButton;
     Edit11: TEdit;
+    Memo5: TMemo;
+    Button7: TButton;
 
     procedure IdUDPServer1UDPRead(AThread: TIdUDPListenerThread;
       const AData: TIdBytes; ABinding: TIdSocketHandle);
@@ -148,6 +152,8 @@ type
     procedure Button5Click(Sender: TObject);
     procedure Button6Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
+    procedure Memo5Change(Sender: TObject);
+    procedure Button7Click(Sender: TObject);
 
   type
     // Run state record (reused across ports)
@@ -155,8 +161,10 @@ type
       Active: Boolean;
       LastPacketTimeMs: UInt64;
       PacketCount: Integer;
-      NoiseCount: Integer;     // raw signature changed within run (optional)
+      NoiseCount: Integer;     // raw signature changed within run
       LastRawSig: Cardinal;
+      GapSum: UInt64;
+      GapCount: Integer;
     end;
 
     // 58091 kinds (for UI run tracking across all message types on that port)
@@ -172,7 +180,7 @@ type
     T58094Kind = (k94Award, k94Unknown);
 
   private
-    // === existing per-port "lastType/repeat" (unchanged) ===
+    // === per-port "lastType/repeat" ===
     lastType1: string;
     repeatType1: Integer;
 
@@ -185,7 +193,7 @@ type
     lastType4: string;
     repeatType4: Integer;
 
-    // === NEW: run state for all ports/kinds/origins ===
+    // === run state for all ports/kinds/origins ===
     RunState91: array[T58091Kind, 0..255] of TRunState;
     RunState92: array[T58092Kind, 0..255] of TRunState;
     RunState93: array[T58093Kind, 0..255] of TRunState;
@@ -213,17 +221,17 @@ type
 
     procedure Set58093InProgress(K: T58093Kind);
     procedure Apply58093Final(K: T58093Kind; RunLen: Integer);
-
+    procedure DebugLog(const S: string);
     procedure Set58094InProgress(K: T58094Kind);
     procedure Apply58094Final(K: T58094Kind; RunLen: Integer);
 
-    procedure FlushAllRuns58091; // existing name kept, now flushes UI run states too
+    procedure FlushAllRuns58091; // flushes UI run states too
     procedure FlushAllRuns58092;
     procedure FlushAllRuns58093;
     procedure FlushAllRuns58094;
 
   public
-    // === existing public counters/arrays (unchanged) ===
+    // public counters/arrays
 
     // Port 58091
     c1, r1, u1, a1, d1, sb1, aw1, dr91, tot091 : integer;
@@ -266,7 +274,7 @@ uses
 
 const
   ORIGIN_UNKNOWN      = 255;
-  BURST_TIMEOUT_MS    = 50;  // time gap that closes a run
+  BURST_TIMEOUT_MS    = 100;  // time gap that closes a run
 
 
   function mySplit(const input: string): TArray<string>;
@@ -329,6 +337,21 @@ begin
   end;
 end;
 
+procedure TForm7.DebugLog(const S: string);
+begin
+  TThread.Queue(nil,
+    procedure
+    begin
+      if (Form7 = nil) or (csDestroying in Form7.ComponentState) then Exit;
+
+      Memo5.Lines.Add(S);
+
+      // keep it from growing forever
+      while Memo5.Lines.Count > 10000 do
+        Memo5.Lines.Delete(0);
+    end);
+end;
+
 function Clamp12(N: Integer): Integer;
 begin
   if N > 12 then Result := 12 else Result := N;
@@ -337,43 +360,48 @@ end;
 { ===== Kind mapping ===== }
 function TForm7.Kind58091FromType(const T: string): T58091Kind;
 begin
-  if      SameText(T, 'REFEREE') then Result := k91Referee
-  else if SameText(T, 'AVIDEO') then Result := k91Avideo
-  else if SameText(T, 'UPDATE') then Result := k91Update
-  else if SameText(T, 'DRCONFIG') then Result := k91DRConfig
-  else if SameText(T, 'SBCONTROL') then Result := k91SBControl
-  else if SameText(T, 'AWARD') then Result := k91Award
+  if      SameText(T, 'REFEREE')      then Result := k91Referee
+  else if SameText(T, 'AVIDEO')       then Result := k91Avideo
+  else if SameText(T, 'UPDATE')       then Result := k91Update
+  else if SameText(T, 'DRCONFIG')     then Result := k91DRConfig
+  else if SameText(T, 'SBCONTROL')    then Result := k91SBControl
+  else if SameText(T, 'AWARD')        then Result := k91Award
   else if Sametext(T, 'DIVERECORDER') then Result := k91DiveRecorder
   else Result := k91Unknown;
 end;
 
 function TForm7.Kind58092FromType(const T: string): T58092Kind;
 begin
-  if      SameText(T, 'SCOREBOARD') then Result := k92Scoreboard
-  else if SameText(T, 'HELLO') then Result := k92Hello
-  else if SameText(T, 'FOUNDSERVER') then Result := k92FoundServer
-  else if SameText(T, 'DBSERVER') then Result := k92DBServer
+  if      SameText(T, 'SCOREBOARD')   then Result := k92Scoreboard
+  else if SameText(T, 'HELLO')        then Result := k92Hello
+  else if SameText(T, 'FOUNDSERVER')  then Result := k92FoundServer
+  else if SameText(T, 'DBSERVER')     then Result := k92DBServer
   else Result := k92Unknown;
 end;
 
 function TForm7.Kind58093FromType(const T: string): T58093Kind;
 begin
-  if      SameText(T, 'WEBUPDATE') then Result := k93WebUpdate
-  else if SameText(T, 'CLEAR_A/B') then Result := k93ClearAB
-  else if SameText(T, 'STARTRESULT') then Result := k93StartResult
-  else if SameText(T, 'WEBMESSAGE') then Result := k93WebMessage
+  if      SameText(T, 'WEBUPDATE')    then Result := k93WebUpdate
+  else if SameText(T, 'CLEAR_A') or SameText(T, 'CLEAR_B') then Result := k93ClearAB
+  else if SameText(T, 'STARTRESULT')  then Result := k93StartResult
+  else if SameText(T, 'WEBMESSAGE')   then Result := k93WebMessage
   else Result := k93Unknown;
 end;
 
 function TForm7.Kind58094FromType(const T: string): T58094Kind;
 begin
-  if SameText(T, 'AWARD') then Result := k94Award
+  if    SameText(T, 'AWARD')    then Result := k94Award
   else Result := k94Unknown;
+end;
+
+procedure TForm7.Memo5Change(Sender: TObject);
+begin
+
 end;
 
 { ===== Expected burst counts =====
   NOTE: You can refine these later per message type.
-  For now we assume "3 is healthy" across types (as discussed). }
+  For now we assume "3 is healthy" across types.   }
 
 function TForm7.ExpectedBurstFor58091(K: T58091Kind): Integer;
 begin
@@ -414,7 +442,7 @@ begin
   else
     G.ForeColor := clRed;
 
-  G.Update;           // repaint now!
+  G.Update;      // repaint now!
 end;
 
 { ===== Port-specific gauge mapping ===== }
@@ -430,7 +458,7 @@ begin
     k91Award:         SetGaugeInProgress(Gauge6);
     k91DiveRecorder:  SetGaugeInProgress(Gauge11);
     else
-    ; // unknown ignored
+    ;      // unknown so ignored
   end;
 end;
 
@@ -627,7 +655,7 @@ begin
   // Port 58094
   awd4 := 0; tot094 := 0;
 
-  // --- Reset Edit boxes (per your mapping in the UDPRead handlers) ---
+  // --- Reset Edit boxes (per mapping in the UDPRead handlers) ---
   // 58091 edits
   Edit1.Text := '0';   // r1 REFEREE
   Edit2.Text := '0';   // a1 AVIDEO
@@ -635,7 +663,7 @@ begin
   Edit4.Text := '0';   // d1 DRCONFIG
   Edit5.Text := '0';   // sb1 SBCONTROL
   Edit6.Text := '0';   // aw1 AWARD
-  Edit11.Text := '0';  // di2 DIVERECORDER
+  Edit11.Text := '0';  // di2 DIVERECORDER    *** was on port 58093
 
   // 58092 edits
   Edit7.Text := '0';   // sc2 SCOREBOARD
@@ -656,9 +684,9 @@ begin
   Edit16.Text := 'Status: All Hosts';
 
   // --- Reset per-port packet labels ---
-  Label7.Caption := '0 Packets';
-  Label8.Caption := '0 Packets';
-  Label9.Caption := '0 Packets';
+  Label7.Caption  := '0 Packets';
+  Label8.Caption  := '0 Packets';
+  Label9.Caption  := '0 Packets';
   Label10.Caption := '0 Packets';
 
   // --- Clear memo logs ---
@@ -697,7 +725,7 @@ begin
   lastType3 := ''; repeatType3 := 0; s3Old := '';
   lastType4 := ''; repeatType4 := 0; s4Old := '';
 
-  // --- Clear discovered host cache too ---
+  // --- Clear discovered host cache ---
   if HostNameList <> nil then HostNameList.Clear;
 end;
 
@@ -719,6 +747,48 @@ begin
   if not Assigned(frmDisplay) then
     frmDisplay := TfrmDisplay.Create(Self);
   frmDisplay.Show;
+end;
+
+procedure TForm7.Button7Click(Sender: TObject);       // debug
+begin
+    // add here
+end;
+
+procedure BindUDPServer(Server: TIdUDPServer; Port: Integer);
+var
+  AddrList: TIdStackLocalAddressList;
+  i: Integer;
+  B: TIdSocketHandle;
+begin
+  Server.Active := False;
+  Server.Bindings.Clear;
+
+  AddrList := TIdStackLocalAddressList.Create;
+  try
+    GStack.GetLocalAddressList(AddrList);
+
+    for i := 0 to AddrList.Count - 1 do
+    begin
+      // IPv4 only
+      if AddrList[i].IPVersion = Id_IPv4 then
+      begin
+        // Skip loopback if you want
+        if AddrList[i].IPAddress <> '127.0.0.1' then
+        begin
+          B := Server.Bindings.Add;
+          B.IP := AddrList[i].IPAddress;
+          B.Port := Port;
+          B.IPVersion := Id_IPv4;
+        end;
+      end;
+    end;
+  finally
+    AddrList.Free;
+  end;
+  for i := 0 to Server.Bindings.Count - 1 do
+    Form7.Memo5.Lines.Add('Listening on ' + Server.Bindings[i].IP + ':' + IntToStr(Port));
+  Server.BroadcastEnabled := True;
+  Server.Active := True;
 end;
 
 procedure TForm7.FormCreate(Sender: TObject);
@@ -753,6 +823,7 @@ begin
 end;
 
 procedure TForm7.Button1Click(Sender: TObject);      // Connect to Ports
+
 begin
   if IdUDPServer1.Active or IdUDPServer2.Active or
      IdUDPServer3.Active or IdUDPServer4.Active then
@@ -760,61 +831,32 @@ begin
     IdUDPServer1.Active := False;
     FlushAllRuns58091;
     IdUDPServer1.Bindings.Clear;
-    with IdUDPServer1.Bindings.Add do
-    begin
-      IP := '0.0.0.0';
-      Port := 58091;
-    end;
 
     IdUDPServer2.Active := False;
     FlushAllRuns58092;
     IdUDPServer2.Bindings.Clear;
-    with IdUDPServer2.Bindings.Add do
-    begin
-      IP := '0.0.0.0';
-      Port := 58092;
-    end;
 
     IdUDPServer3.Active := False;
     FlushAllRuns58093;
     IdUDPServer3.Bindings.Clear;
-    with IdUDPServer3.Bindings.Add do
-    begin
-      IP := '0.0.0.0';
-      Port := 58093;
-    end;
 
     IdUDPServer4.Active := False;
     FlushAllRuns58094;
     IdUDPServer4.Bindings.Clear;
-    with IdUDPServer4.Bindings.Add do
-    begin
-      IP := '0.0.0.0';
-      Port := 58094;
-    end;
 
     Label2.Caption := 'Not Attached';
     Button1.Caption := 'Connect';
     Exit;
   end;
 
-  IdUDPServer1.DefaultPort := 58091;
-  IdUDPServer2.DefaultPort := 58092;
-  IdUDPServer3.DefaultPort := 58093;
-  IdUDPServer4.DefaultPort := 58094;
-
-  IdUDPServer1.BroadcastEnabled := True;
-  IdUDPServer2.BroadcastEnabled := True;
-  IdUDPServer3.BroadcastEnabled := True;
-  IdUDPServer4.BroadcastEnabled := True;
-
-  IdUDPServer1.Active := True;
-  IdUDPServer2.Active := True;
-  IdUDPServer3.Active := True;
-  IdUDPServer4.Active := True;
+  BindUDPServer(IdUDPServer1, 58091);
+  BindUDPServer(IdUDPServer2, 58092);
+  BindUDPServer(IdUDPServer3, 58093);
+  BindUDPServer(IdUDPServer4, 58094);
 
   Label2.Caption := 'Attached to 4 UDP ports!';
   Button1.Caption := 'Disconnect';
+
 end;
 
 procedure TForm7.Button2Click(Sender: TObject);
@@ -822,6 +864,7 @@ begin
   Form2.show;
 end;
 
+// decode selection
 procedure TForm7.RadioButton10Click(Sender: TObject); begin btnPressed := 10; end;
 procedure TForm7.RadioButton11Click(Sender: TObject); begin btnPressed := 11; end;
 procedure TForm7.RadioButton12Click(Sender: TObject); begin btnPressed := 12; end;
@@ -888,6 +931,7 @@ begin
   // Display still fed (intentional — do not restrict)
   if Assigned(frmDisplay) then
     frmDisplay.FeedUdpText(Raw);
+//  if debug then Memo5.Lines.Add('Rx on 58091: ' + Raw);
 
   PeerIP := ABinding.PeerIP;
   PeerPort := ABinding.PeerPort;
@@ -906,9 +950,7 @@ begin
   FieldCount1 := Length(Fields);
   CharCount1 := Length(Raw);
 
-  // ===========================================================
   // HANDLE DIVERECORDER PACKET SEPARATELY (Host Discovery ONLY)
-  // ===========================================================
   if SameText(thisType, 'DIVERECORDER') then
   begin
     if Length(splitString1) > 1 then
@@ -927,12 +969,27 @@ begin
         if HostNameList = nil then
           HostNameList := TStringList.Create;
 
-        // GUARANTEED dedupe
-        if HostNameList.IndexOf(host) < 0 then
-          HostNameList.Add(host);
+        var baseHost := host;
+        var displayName := host + ' (' + PeerIP + ')';
+        var i: Integer;
+        var found := False;
+
+        // check if host already exists (with IP)
+        begin
+        baseHost := host;
+        displayName := host + ' (' + PeerIP + ')';
+
+        for i := HostNameList.Count - 1 downto 0 do
+          if StartsText(baseHost, HostNameList[i]) then
+            HostNameList.Delete(i);
+        HostNameList.Add(displayName);
+        end;
+
+        if not found then
+          HostNameList.Add(displayName);
+        end;
       end;
-    end;
-  end;
+   end;
 
   // Origin handling
   Origin := OriginFromFields(Fields, OriginLabel);
@@ -993,13 +1050,25 @@ begin
         CommittedKind := KindUI;
 
         if IsMetricsType then
+        begin
           Metrics58091_AddRun(MetricsKind, Origin, S^.PacketCount);
+
+          if S^.GapCount > 0 then
+          begin
+            var avgGap := S^.GapSum div S^.GapCount;
+            Metrics58091_ObserveGap(MetricsKind, Origin, avgGap);
+          end;
+        end;
+
       end;
 
       S^.Active := False;
       S^.PacketCount := 0;
       S^.NoiseCount := 0;
       S^.LastRawSig := 0;
+      S^.GapSum := 0;
+      S^.GapCount := 0;
+      S^.LastPacketTimeMs := 0;
     end;
 
     // --- start or continue run
@@ -1016,18 +1085,42 @@ begin
     begin
       Inc(S^.PacketCount);
 
+    // --- accumulate burst gap ONLY within same burst
+    if IsMetricsType and (S^.LastPacketTimeMs <> 0) then
+    begin
+      var gap := tNow - S^.LastPacketTimeMs;
+
+        // ONLY count gaps that are still within THIS burst
+        if gap < BURST_TIMEOUT_MS then
+        begin
+          Inc(S^.GapCount);
+          S^.GapSum := S^.GapSum + gap;
+        end;
+    end;
+
       if rawSig <> S^.LastRawSig then
         Inc(S^.NoiseCount);
 
       S^.LastRawSig := rawSig;
+
+      // now update timestamp
       S^.LastPacketTimeMs := tNow;
     end;
 
     // --- early commit rule
     if (S^.PacketCount >= ExpectedBurstFor58091(KindUI)) then
     begin
-      if isMetricsType then
-        Metrics58091_AddRun(MetricsKind, Origin, S^.PacketCount);
+      if IsMetricsType then
+        begin
+          Metrics58091_AddRun(MetricsKind, Origin, S^.PacketCount);
+
+          // --- calculate average gap for this burst
+          if S^.GapCount > 0 then
+          begin
+            var avgGap := S^.GapSum div S^.GapCount;
+            Metrics58091_ObserveGap(MetricsKind, Origin, avgGap);
+          end;
+        end;
 
       CommittedRunLen := S^.PacketCount;
       CommittedKind := KindUI;
@@ -1036,6 +1129,8 @@ begin
       S^.PacketCount := 0;
       S^.NoiseCount := 0;
       S^.LastRawSig := 0;
+      S^.GapSum := 0;
+      S^.GapCount := 0;
     end;
   end;
 
@@ -1158,10 +1253,14 @@ begin
 
   Inc(tot092);
 
+ // if debug then Memo5.Lines.Add('Rx on 58092: ' + Raw);
+  if Memo5.Lines.Count > 10000 then Memo5.Lines.Delete(0);
+
+
   SameMsg := (Raw = s2Old);
   s2Old := Raw;
 
-  if not SameMsg then
+ //if not SameMsg then
     splitString2 := mySplit(Raw);
 
   if Length(splitString2) = 0 then Exit;
@@ -1303,10 +1402,12 @@ begin
 
   Inc(tot093);
 
+//  if debug then Memo5.Lines.Add('Rx on 58093: ' + Raw);
+
   SameMsg := (Raw = s3Old);
   s3Old := Raw;
 
-  if not SameMsg then
+  //if not SameMsg then
     splitString3 := mySplit(Raw);
 
   if Length(splitString3) = 0 then Exit;
@@ -1393,7 +1494,12 @@ begin
         Inc(wu3); Edit12.Text := IntToStr(wu3); webupdateArray1 := splitString3;
         if not samemsg then if btnPressed = 12 then if Form2.CheckBox1.checked then Form2.Decode.Click;
       end
-      else if thisType = 'CLEAR_A/B' then
+      else if string(thisType) = 'CLEAR_A' then
+      begin
+        Inc(cl3); Edit17.Text := IntToStr(cl3); clearABArray1 := splitString3;
+        if not samemsg then if btnPressed = 13 then if Form2.CheckBox1.checked then Form2.Decode.Click;
+      end
+      else if string(thisType) = 'CLEAR_B' then
       begin
         Inc(cl3); Edit17.Text := IntToStr(cl3); clearABArray1 := splitString3;
         if not samemsg then if btnPressed = 13 then if Form2.CheckBox1.checked then Form2.Decode.Click;
@@ -1450,10 +1556,12 @@ begin
 
   Inc(tot094);
 
+// if debug then Memo5.Lines.Add('Rx on 58094: ' + Raw);
+
   SameMsg := (Raw = s4Old);
   s4Old := Raw;
 
-  if not SameMsg then
+  // if not SameMsg then
     splitString4 := mySplit(Raw);
 
   if Length(splitString4) = 0 then Exit;

@@ -8,6 +8,10 @@
  Original from Malcolm's DR2Video app.
 
  2026-05-17 V1.1  Modified to 'share' UDP ports with Main unit.
+
+ Needs a complete review and update as most of this code is not used in this app as
+ the export function is not used (from original 'TV Video' file export).
+
 }
 
 unit Display;
@@ -133,7 +137,7 @@ implementation
 uses
   DiveDM,            // what is being used?   =   UDPServerPort,  FileTransferPort,  Language, DRHost, DataPath, LoadFromFile, DM,  ScoreBTable
   Main,
-  XML.VerySimple;
+  XML.VerySimple;    // not actually used in the Monitor app!
 
 const
   Sep: string = '|'; // This is for file xfer processing

@@ -7,6 +7,7 @@
   selects the port for the metrics engine to work on.  This is sort of fixed in this version.
 
 }
+
 unit FormMetrics;
 
 interface
@@ -14,7 +15,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Grids,
-  Vcl.StdCtrls, udpMetrics;
+  Vcl.StdCtrls, UdpMetrics;
 
 type
   TMetrics = class(TForm)
@@ -31,7 +32,7 @@ type
   private
     procedure SetupGrid(Grid: TStringGrid);
     procedure FillGridForKind(Grid: TStringGrid; Kind: T58091MsgKind);
-    function  FormatRunHistCompact(const H: TRunHist): string;
+    function FormatRunHistCompact(const H: TRunHist): string;
   public
     procedure RefreshForPort58091;
   end;
@@ -46,29 +47,39 @@ implementation
 const
   COL_ORIGIN  = 0;
   COL_MOVAVG  = 1;
-  COL_RUNS    = 6;
+  COL_MAXGAP  = 2;
+  COL_INCOMP  = 3;
+  COL_EXTRA   = 4;
+  COL_CORRUPT = 5;
+  COL_UNKNOWN = 6;
+  COL_RUNS    = 7;
 
 procedure TMetrics.SetupGrid(Grid: TStringGrid);
 begin
   Grid.DefaultDrawing := False;
   Grid.OnDrawCell := GridDrawCell;
 
-  Grid.ColCount := 7;
-
+  Grid.ColCount := 8;
   Grid.FixedRows := 1;
-  Grid.RowCount  := 2;  // MUST be > FixedRows
+  Grid.RowCount := 2;
 
-  Grid.Cells[0, 0] := 'Origin';
-  Grid.Cells[1, 0] := 'MovAvg';
-  Grid.Cells[2, 0] := 'Incomplete';
-  Grid.Cells[3, 0] := 'Extra';
-  Grid.Cells[4, 0] := 'Corrupt';
-  Grid.Cells[5, 0] := 'Unknown';
-  Grid.Cells[6, 0] := 'Runs';
+  Grid.Cells[COL_ORIGIN, 0]  := 'Origin';
+  Grid.Cells[COL_MOVAVG, 0]  := 'MovAvg';
+  Grid.Cells[COL_MAXGAP, 0]  := 'AvgGap ms';
+  Grid.Cells[COL_INCOMP, 0]  := 'Incomplete';
+  Grid.Cells[COL_EXTRA, 0]   := 'Extra';
+  Grid.Cells[COL_CORRUPT, 0] := 'Corrupt';
+  Grid.Cells[COL_UNKNOWN, 0] := 'Unknown';
+  Grid.Cells[COL_RUNS, 0]    := 'Runs';
 
-  Grid.ColWidths[0] := 130;
-  Grid.ColWidths[1] := 60;
-  Grid.ColWidths[6] := 200;
+  Grid.ColWidths[COL_ORIGIN]  := 130;
+  Grid.ColWidths[COL_MOVAVG]  := 60;
+  Grid.ColWidths[COL_MAXGAP]  := 80;
+  Grid.ColWidths[COL_INCOMP]  := 70;
+  Grid.ColWidths[COL_EXTRA]   := 55;
+  Grid.ColWidths[COL_CORRUPT] := 55;
+  Grid.ColWidths[COL_UNKNOWN] := 60;
+  Grid.ColWidths[COL_RUNS]    := 200;
 end;
 
 function TMetrics.FormatRunHistCompact(const H: TRunHist): string;
@@ -91,17 +102,11 @@ end;
 
 procedure TMetrics.btnResetClick(Sender: TObject);
 begin
-  // Reset underlying metrics
   Metrics58091_ResetAll;
-
-  // Rebuild grids from (now empty) metrics
   RefreshForPort58091;
-
-  // Force visual redraw
   GridReferee.Repaint;
   GridUpdate.Repaint;
 end;
-
 
 procedure TMetrics.FillGridForKind(Grid: TStringGrid; Kind: T58091MsgKind);
 var
@@ -129,46 +134,46 @@ begin
         (M^.IncompleteCount > 0) or
         (M^.ExtraFieldCount > 0) or
         (M^.CorruptCount > 0) or
-        (M^.UnknownTypeCount > 0)) then
+        (M^.UnknownTypeCount > 0) or
+        (M^.AvgGapMs > 0)) then
     begin
-       AddedAny := True;
-       Grid.RowCount := Row + 1;
+      AddedAny := True;
+      Grid.RowCount := Row + 1;
 
       OriginLabel := Metrics58091Identity[Origin];
       if OriginLabel <> '' then
-        Grid.Cells[0, Row] := OriginLabel
+        Grid.Cells[COL_ORIGIN, Row] := OriginLabel
       else
-        Grid.Cells[0, Row] := IntToStr(Origin);
+        Grid.Cells[COL_ORIGIN, Row] := IntToStr(Origin);
 
-      Grid.Cells[1, Row] := FormatFloat('0.0', M^.MovAvgRun);
-      Grid.Cells[2, Row] := IntToStr(M^.IncompleteCount);
-      Grid.Cells[3, Row] := IntToStr(M^.ExtraFieldCount);
-      Grid.Cells[4, Row] := IntToStr(M^.CorruptCount);
-      Grid.Cells[5, Row] := IntToStr(M^.UnknownTypeCount);
-      Grid.Cells[6, Row] := FormatRunHistCompact(M^.RunHist);
+      Grid.Cells[COL_MOVAVG, Row]  := FormatFloat('0.0', M^.MovAvgRun);
+      Grid.Cells[COL_MAXGAP, Row]  := IntToStr(M^.AvgGapMs);
+      Grid.Cells[COL_INCOMP, Row]  := IntToStr(M^.IncompleteCount);
+      Grid.Cells[COL_EXTRA, Row]   := IntToStr(M^.ExtraFieldCount);
+      Grid.Cells[COL_CORRUPT, Row] := IntToStr(M^.CorruptCount);
+      Grid.Cells[COL_UNKNOWN, Row] := IntToStr(M^.UnknownTypeCount);
+      Grid.Cells[COL_RUNS, Row]    := FormatRunHistCompact(M^.RunHist);
 
       Inc(Row);
     end;
   end;
 
- //  Placeholder if no data
   if not AddedAny then
   begin
-    Grid.RowCount := Grid.FixedRows + 1;    // exactly one display row
-    Grid.Cells[COL_ORIGIN, Grid.FixedRows] := '<No data yet>';
-    Grid.Cells[COL_MOVAVG, Grid.FixedRows] := '';
-    Grid.Cells[2, Grid.FixedRows] := '';
-    Grid.Cells[3, Grid.FixedRows] := '';
-    Grid.Cells[4, Grid.FixedRows] := '';
-    Grid.Cells[5, Grid.FixedRows] := '';
-    Grid.Cells[COL_RUNS, Grid.FixedRows] := '';
-  end
-
+    Grid.RowCount := Grid.FixedRows + 1;
+    Grid.Cells[COL_ORIGIN,  Grid.FixedRows] := '<No data yet>';
+    Grid.Cells[COL_MOVAVG,  Grid.FixedRows] := '';
+    Grid.Cells[COL_MAXGAP,  Grid.FixedRows] := '';
+    Grid.Cells[COL_INCOMP,  Grid.FixedRows] := '';
+    Grid.Cells[COL_EXTRA,   Grid.FixedRows] := '';
+    Grid.Cells[COL_CORRUPT, Grid.FixedRows] := '';
+    Grid.Cells[COL_UNKNOWN, Grid.FixedRows] := '';
+    Grid.Cells[COL_RUNS,    Grid.FixedRows] := '';
+  end;
 end;
 
 procedure TMetrics.RefreshForPort58091;
 begin
-
   GridReferee.BeginUpdate;
   GridUpdate.BeginUpdate;
   try
@@ -178,6 +183,7 @@ begin
     GridReferee.EndUpdate;
     GridUpdate.EndUpdate;
   end;
+
   GridReferee.Repaint;
   GridUpdate.Repaint;
 end;
@@ -187,14 +193,17 @@ procedure TMetrics.GridDrawCell(Sender: TObject; ACol, ARow: Integer;
 var
   Grid: TStringGrid;
   Avg: Double;
+  Gap: Integer;
   IsPlaceholder: Boolean;
 begin
   Grid := Sender as TStringGrid;
 
   // Header row
-  if (ARow = 0) then
+  if ARow = 0 then
   begin
     Grid.Canvas.Brush.Color := clBtnFace;
+    Grid.Canvas.Font.Color := clWindowText;
+    Grid.Canvas.Font.Style := [];
     Grid.Canvas.FillRect(Rect);
     Grid.Canvas.TextRect(Rect, Rect.Left + 4, Rect.Top + 2, Grid.Cells[ACol, ARow]);
     Exit;
@@ -202,47 +211,51 @@ begin
 
   IsPlaceholder := SameText(Grid.Cells[COL_ORIGIN, ARow], '<No data yet>');
 
-  // Default background
   Grid.Canvas.Brush.Color := clWindow;
+  Grid.Canvas.Font.Color := clWindowText;
+  Grid.Canvas.Font.Style := [];
 
-  // Placeholder styling
   if IsPlaceholder then
   begin
-    Grid.Canvas.Brush.Color := clBtnFace;     // subtle grey background
+    Grid.Canvas.Brush.Color := clBtnFace;
     Grid.Canvas.Font.Color := clGrayText;
     Grid.Canvas.Font.Style := [fsItalic];
   end
   else
   begin
-    Grid.Canvas.Font.Color := clWindowText;
-    Grid.Canvas.Font.Style := [];
-  end;
+    if ACol = COL_MOVAVG then
+    begin
+      Avg := StrToFloatDef(Grid.Cells[ACol, ARow], 0.0);
 
-  // MovAvg colouring only for real rows
-  if (not IsPlaceholder) and (ACol = COL_MOVAVG) then
-  begin
-    Avg := StrToFloatDef(Grid.Cells[ACol, ARow], 0.0);
+      if Avg >= 2.8 then
+        Grid.Canvas.Brush.Color := clMoneyGreen
+      else if Avg >= 2.0 then
+        Grid.Canvas.Brush.Color := clYellow
+      else
+        Grid.Canvas.Brush.Color := clRed;
+    end
+    else if ACol = COL_MAXGAP then
+    begin
+      Gap := StrToIntDef(Grid.Cells[ACol, ARow], 0);
 
-    if Avg >= 2.8 then
-      Grid.Canvas.Brush.Color := clMoneyGreen
-    else if Avg >= 2.0 then
-      Grid.Canvas.Brush.Color := clYellow
-    else
-      Grid.Canvas.Brush.Color := clRed;
+      if Gap <= 60 then
+        Grid.Canvas.Brush.Color := clMoneyGreen
+      else if Gap <= 90 then
+        Grid.Canvas.Brush.Color := clYellow
+      else
+        Grid.Canvas.Brush.Color := clRed;
+    end;
   end;
 
   Grid.Canvas.FillRect(Rect);
 
-  // If placeholder: draw message across the whole row (looks better)
-  if IsPlaceholder and (ACol = COL_ORIGIN) then
-    Grid.Canvas.TextRect(Rect, Rect.Left + 4, Rect.Top + 2, Grid.Cells[ACol, ARow])
-  else if not IsPlaceholder then
-    Grid.Canvas.TextRect(Rect, Rect.Left + 4, Rect.Top + 2, Grid.Cells[ACol, ARow])
-  else
+  if IsPlaceholder then
   begin
-    // For placeholder row, blank other columns (already blank) so do nothing
-  end;
+    if ACol = COL_ORIGIN then
+      Grid.Canvas.TextRect(Rect, Rect.Left + 4, Rect.Top + 2, Grid.Cells[ACol, ARow]);
+  end
+  else
+    Grid.Canvas.TextRect(Rect, Rect.Left + 4, Rect.Top + 2, Grid.Cells[ACol, ARow]);
 end;
 
 end.
-``
