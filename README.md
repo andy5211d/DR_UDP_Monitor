@@ -1,6 +1,6 @@
 A utility to monitor and decode the UDP packets from Diverecorder.   
 
-This utility is written in Delphi using Embarcadero's RAD Studio V12.3 IDE.
+This utility is written in Delphi using Embarcadero's RAD Studio V13.1 IDE.
 
 1. Has the capability of knowing if there is more than one NIC on the machine running this software and allows the user to select which is used for the monitor function.
 2. Will display the reception status of each packet on each of the four ports used by DR.
