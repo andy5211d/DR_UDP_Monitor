@@ -1,7 +1,6 @@
 A utility to monitor and decode the UDP packets from Diverecorder.   
 
 This utility is written in Delphi using Embarcadero's RAD Studio V13 IDE
-This utility is written in Delphi using Embarcadero's RAD Studio V13 IDE
 
 The intent of this utility is to understand what is happening on the DR network by receiving and monitoring the DR UDP packets sent by all running instances of DR.
 
