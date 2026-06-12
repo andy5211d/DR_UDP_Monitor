@@ -636,7 +636,7 @@ end;
 
 procedure TForm7.Button3Click(Sender: TObject);           // Reset
 begin
-  // --- Stop any “in-progress” runs cleanly (optional, but keeps colours consistent) ---
+  // --- Stop any ï¿½in-progressï¿½ runs cleanly (optional, but keeps colours consistent) ---
   FlushAllRuns58091;
   FlushAllRuns58092;
   FlushAllRuns58093;
@@ -719,7 +719,7 @@ begin
   FillChar(RunState93, SizeOf(RunState93), 0);
   FillChar(RunState94, SizeOf(RunState94), 0);
 
-  // --- Reset “last message / repeat” tracking ---
+  // --- Reset ï¿½last message / repeatï¿½ tracking ---
   lastType1 := ''; repeatType1 := 0; s1Old := '';
   lastType2 := ''; repeatType2 := 0; s2Old := '';
   lastType3 := ''; repeatType3 := 0; s3Old := '';
@@ -928,7 +928,7 @@ begin
   // RAW DATA
   Raw := Trim(BytesToString(AData, IndyTextEncoding_UTF8));
 
-  // Display still fed (intentional — do not restrict)
+  // Display still fed (intentional ï¿½ do not restrict)
   if Assigned(frmDisplay) then
     frmDisplay.FeedUdpText(Raw);
 //  if debug then Memo5.Lines.Add('Rx on 58091: ' + Raw);
@@ -1135,7 +1135,7 @@ begin
   end;
 
   // ================================
-  // UI UPDATE — STRICTLY 58091 ONLY
+  // UI UPDATE ï¿½ STRICTLY 58091 ONLY
   // ================================
 
   TThread.Queue(nil,
