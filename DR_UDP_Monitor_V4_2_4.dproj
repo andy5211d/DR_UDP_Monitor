@@ -2,7 +2,7 @@
     <PropertyGroup>
         <Base>True</Base>
         <AppType>Application</AppType>
-        <Config Condition="'$(Config)'==''">Debug</Config>
+        <Config Condition="'$(Config)'==''">Release</Config>
         <FrameworkType>VCL</FrameworkType>
         <MainSource>DR_UDP_Monitor_V4_2_4.dpr</MainSource>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
@@ -131,11 +131,6 @@
             <Form>frmMultiNIC</Form>
             <FormType>dfm</FormType>
         </DCCReference>
-        <DCCReference Include="DiveDM.pas">
-            <Form>DM</Form>
-            <FormType>dfm</FormType>
-            <DesignClass>TDataModule</DesignClass>
-        </DCCReference>
         <DCCReference Include="UdpMetrics.pas">
             <Form>DataModule1</Form>
             <FormType>dfm</FormType>
@@ -148,6 +143,11 @@
         <DCCReference Include="Display.pas">
             <Form>frmDisplay</Form>
             <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="DiveDM.pas">
+            <Form>DM</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TDataModule</DesignClass>
         </DCCReference>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>

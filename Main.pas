@@ -26,7 +26,7 @@
   2026-05-18 V4.2.1      Display (Scoreboard) now added and changed to share UDP ports with Main.  Host selection now implemented.
   2026-05-18 V4.2.2      UDP message DIVERECORDER moved to port 58091 (from 58092).
   2026-05-30 V4.2.3      Corrected 'Continous Decode' button operation (in Unit2)
-  2026-06-10 V4.2.4      Corrected the metrics data and 'clock' display. 'Timeout' issue, now set at 100ms.  Packet gap measurement added.
+  2026-06-10 V4.2.4      Corrected the metrics data and 'clock' display. Packet 'timeout', now set at 100ms.  Packet gap measurement added.
 }
 
 unit Main;
